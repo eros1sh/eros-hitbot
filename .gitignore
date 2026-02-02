@@ -4,7 +4,6 @@
 *.dll
 *.so
 *.dylib
-eroshit
 
 # User config (contains credentials - use config.example.json as template)
 config.json
