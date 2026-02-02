@@ -3,6 +3,7 @@ package simulator
 import (
 	"context"
 	"math/rand"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -14,15 +15,17 @@ import (
 	"eroshit/pkg/analytics"
 	"eroshit/pkg/delay"
 	"eroshit/pkg/i18n"
+	"eroshit/pkg/sitemap"
 )
 
 // Simulator trafik simülasyonu orkestratörü
 type Simulator struct {
-	cfg         *config.Config
-	crawler     *crawler.Crawler
-	hitVisitor  *browser.HitVisitor
-	reporter    *reporter.Reporter
-	pages       []string
+	cfg          *config.Config
+	crawler      *crawler.Crawler
+	hitVisitor   *browser.HitVisitor
+	reporter     *reporter.Reporter
+	pages        []string
+	homepageURL  string // anasayfa (ağırlıklı seçim için)
 }
 
 // New simulator oluşturur. agentProvider ve rep nil olabilir.
@@ -80,84 +83,139 @@ func (s *Simulator) Run(ctx context.Context) error {
 	if workers <= 0 {
 		workers = 10
 	}
+	hpm := s.cfg.HitsPerMinute
+	if hpm <= 0 {
+		hpm = 35
+	}
 	s.reporter.LogT(i18n.MsgTarget,
-		s.cfg.TargetDomain, s.cfg.MaxPages, s.cfg.DurationMinutes, s.cfg.HitsPerMinute, workers)
+		s.cfg.TargetDomain, s.cfg.MaxPages, s.cfg.DurationMinutes, hpm, workers)
 
-	// 1. Sayfa keşfi
+	// 1. Sayfa keşfi (ve isteğe bağlı sitemap)
+	baseURL := s.cfg.TargetDomain
+	if !strings.HasPrefix(baseURL, "http") {
+		baseURL = "https://" + strings.TrimPrefix(baseURL, "//")
+	}
+	baseURL = strings.TrimSuffix(baseURL, "/")
+	s.homepageURL = baseURL
+
 	s.reporter.LogT(i18n.MsgDiscovery)
-	pages, err := s.crawler.Discover()
-	if err != nil {
-		s.reporter.LogT(i18n.MsgDiscoveryErr, err.Error())
-		pages = []string{"https://" + s.cfg.TargetDomain}
+	var pages []string
+	if s.cfg.UseSitemap {
+		sitemapURLs, errSitemap := sitemap.Fetch(baseURL, nil)
+		if errSitemap == nil && len(sitemapURLs) > 0 {
+			pages = sitemapURLs
+			weight := s.cfg.SitemapHomepageWeight
+			if weight <= 0 {
+				weight = 60
+			}
+			s.reporter.LogT(i18n.MsgSitemapFound, len(pages), weight)
+		} else {
+			s.reporter.LogT(i18n.MsgSitemapNone)
+		}
+	}
+	if len(pages) == 0 {
+		var errDiscover error
+		pages, errDiscover = s.crawler.Discover()
+		if errDiscover != nil {
+			s.reporter.LogT(i18n.MsgDiscoveryErr, errDiscover.Error())
+			pages = []string{s.homepageURL}
+		}
+		s.reporter.LogT(i18n.MsgPagesFound, len(pages), pages)
 	}
 	s.pages = pages
-	s.reporter.LogT(i18n.MsgPagesFound, len(pages), pages)
+	if len(s.pages) == 0 {
+		s.pages = []string{s.homepageURL}
+	}
 
-	// 2. Paralel işçi havuzu - en fazla workers kadar eşzamanlı ziyaret
+	// 2. HPM sınırı: token bucket (başta workers kadar burst, sonra dakikada hpm refill)
+	tb := delay.NewTokenBucket(ctx, hpm, workers)
+	defer tb.Stop()
+
+	deadline := time.Now().Add(s.cfg.Duration)
 	sem := make(chan struct{}, workers)
+	slotFreed := make(chan struct{}, workers)
 	var hitCount int64
 	var wg sync.WaitGroup
 
-	deadline := time.Now().Add(s.cfg.Duration)
-	interval := delay.RequestInterval(s.cfg.HitsPerMinute)
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
+	// Slot boşalınca hemen yeni ziyaret başlat (token varsa); HPM token bucket ile sınırlı
+	startVisit := func() {
+		if err := tb.Take(ctx); err != nil {
+			return
+		}
+		if time.Now().After(deadline) {
+			return
+		}
+		select {
+		case sem <- struct{}{}:
+			wg.Add(1)
+			page := s.pickPage()
+			go func(url string) {
+				defer wg.Done()
+				defer func() { <-sem; slotFreed <- struct{}{} }()
+				if err := s.hitVisitor.VisitURL(ctx, url); err != nil {
+					s.reporter.LogT(i18n.MsgVisitErr, url, err)
+				} else {
+					n := atomic.AddInt64(&hitCount, 1)
+					if n%10 == 0 {
+						m := s.reporter.GetMetrics()
+						s.reporter.LogT(i18n.MsgProgress,
+							n, m.TotalHits, m.SuccessHits, m.FailedHits, m.AvgResponseTime)
+					}
+				}
+			}(page)
+		default:
+			// Slot yok (teoride olmamalı; token aldık, slot bekliyoruz)
+		}
+	}
+
+	// Başta tüm slotları hemen doldur (workers kadar burst)
+	for i := 0; i < workers; i++ {
+		slotFreed <- struct{}{}
+	}
+
+	deadlineTimer := time.NewTimer(time.Until(deadline))
+	defer func() {
+		if !deadlineTimer.Stop() {
+			select { case <-deadlineTimer.C: default: }
+		}
+	}()
 
 	for {
 		select {
 		case <-ctx.Done():
 			s.reporter.LogT(i18n.MsgCancel)
+			tb.Stop()
 			wg.Wait()
 			s.finish()
 			return ctx.Err()
 
-		case <-ticker.C:
+		case <-deadlineTimer.C:
+			s.reporter.LogT(i18n.MsgDeadline)
+			tb.Stop()
+			wg.Wait()
+			s.finish()
+			return nil
+
+		case <-slotFreed:
 			if time.Now().After(deadline) {
-				s.reporter.LogT(i18n.MsgDeadline)
-				wg.Wait()
-				s.finish()
-				return nil
+				continue
 			}
-
-			// Yeni ziyaret başlat (paralel - semaphore ile sınırlı)
-			select {
-			case sem <- struct{}{}:
-				// Slot aldık, goroutine'de ziyaret yap
-				wg.Add(1)
-				page := s.pickPage()
-				go func(url string) {
-					defer wg.Done()
-					defer func() { <-sem }()
-					if err := s.hitVisitor.VisitURL(ctx, url); err != nil {
-						s.reporter.LogT(i18n.MsgVisitErr, url, err)
-					} else {
-						n := atomic.AddInt64(&hitCount, 1)
-						if n%10 == 0 {
-							m := s.reporter.GetMetrics()
-							s.reporter.LogT(i18n.MsgProgress,
-								n, m.TotalHits, m.SuccessHits, m.FailedHits, m.AvgResponseTime)
-						}
-					}
-				}(page)
-			default:
-				// Tüm slotlar dolu, bu tick'i atla (bir sonraki tick'te tekrar dene)
-			}
-
-			jitter := delay.Jitter(100*time.Millisecond, 30)
-			select {
-			case <-time.After(jitter):
-			case <-ctx.Done():
-				wg.Wait()
-				s.finish()
-				return ctx.Err()
-			}
+			go startVisit() // Take() bloklayabilir; select bloklanmasın
 		}
 	}
 }
 
 func (s *Simulator) pickPage() string {
 	if len(s.pages) == 0 {
-		return "https://" + s.cfg.TargetDomain
+		return s.homepageURL
+	}
+	weight := s.cfg.SitemapHomepageWeight
+	if weight <= 0 {
+		weight = 60
+	}
+	// Anasayfa yoğunluğu: weight% anasayfa, (100-weight)% sitemap/diğer sayfalar
+	if s.homepageURL != "" && rand.Intn(100) < weight {
+		return s.homepageURL
 	}
 	return s.pages[rand.Intn(len(s.pages))]
 }

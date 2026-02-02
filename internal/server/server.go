@@ -72,10 +72,12 @@ type configFile struct {
 	MaxConcurrentVisits  int    `json:"maxConcurrentVisits"`
 	OutputDir            string `json:"outputDir"`
 	ExportFormat         string `json:"exportFormat"`
-	CanvasFingerprint    bool     `json:"canvasFingerprint"`
-	ScrollStrategy       string   `json:"scrollStrategy"`
-	SendScrollEvent      bool     `json:"sendScrollEvent"`
-	Keywords             []string `json:"keywords"`
+	CanvasFingerprint       bool     `json:"canvasFingerprint"`
+	ScrollStrategy          string   `json:"scrollStrategy"`
+	SendScrollEvent         bool     `json:"sendScrollEvent"`
+	UseSitemap              bool     `json:"useSitemap"`
+	SitemapHomepageWeight   int      `json:"sitemapHomepageWeight"`
+	Keywords                []string `json:"keywords"`
 }
 
 func saveConfigToFile(cfg *config.Config) {
@@ -98,9 +100,11 @@ func saveConfigToFile(cfg *config.Config) {
 				OutputDir:           cfg.OutputDir,
 				ExportFormat:        cfg.ExportFormat,
 				CanvasFingerprint:   cfg.CanvasFingerprint,
-				ScrollStrategy:      cfg.ScrollStrategy,
-				SendScrollEvent:     cfg.SendScrollEvent,
-				Keywords:            cfg.Keywords,
+				ScrollStrategy:          cfg.ScrollStrategy,
+				SendScrollEvent:         cfg.SendScrollEvent,
+				UseSitemap:              cfg.UseSitemap,
+				SitemapHomepageWeight:   cfg.SitemapHomepageWeight,
+				Keywords:                cfg.Keywords,
 			}, "", "  ")
 			if err := os.WriteFile(p, data, 0644); err == nil {
 				return
@@ -150,9 +154,11 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 			"export_format":         cfg.ExportFormat,
 			"canvas_fingerprint":    cfg.CanvasFingerprint,
 			"scroll_strategy":       cfg.ScrollStrategy,
-			"send_scroll_event":     cfg.SendScrollEvent,
-			"keywords":              cfg.Keywords,
-			"proxy_host":            cfg.ProxyHost,
+			"send_scroll_event":       cfg.SendScrollEvent,
+			"use_sitemap":             cfg.UseSitemap,
+			"sitemap_homepage_weight": cfg.SitemapHomepageWeight,
+			"keywords":                cfg.Keywords,
+			"proxy_host":              cfg.ProxyHost,
 			"proxy_port":            cfg.ProxyPort,
 			"proxy_user":            cfg.ProxyUser,
 			"proxy_pass":            cfg.ProxyPass,
@@ -170,10 +176,12 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 			OutputDir            string `json:"output_dir"`
 			ExportFormat         string `json:"export_format"`
 			CanvasFingerprint    bool   `json:"canvas_fingerprint"`
-			ScrollStrategy       string   `json:"scroll_strategy"`
-			SendScrollEvent      bool     `json:"send_scroll_event"`
-			Keywords             []string `json:"keywords"`
-			ProxyHost            string   `json:"proxy_host"`
+			ScrollStrategy         string   `json:"scroll_strategy"`
+			SendScrollEvent        bool     `json:"send_scroll_event"`
+			UseSitemap             bool     `json:"use_sitemap"`
+			SitemapHomepageWeight  int      `json:"sitemap_homepage_weight"`
+			Keywords               []string `json:"keywords"`
+			ProxyHost              string   `json:"proxy_host"`
 			ProxyPort            int    `json:"proxy_port"`
 			ProxyUser            string `json:"proxy_user"`
 			ProxyPass            string `json:"proxy_pass"`
@@ -194,6 +202,8 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		s.cfg.CanvasFingerprint = body.CanvasFingerprint
 		s.cfg.ScrollStrategy = body.ScrollStrategy
 		s.cfg.SendScrollEvent = body.SendScrollEvent
+		s.cfg.UseSitemap = body.UseSitemap
+		s.cfg.SitemapHomepageWeight = body.SitemapHomepageWeight
 		s.cfg.Keywords = body.Keywords
 		s.cfg.ProxyHost = body.ProxyHost
 		s.cfg.ProxyPort = body.ProxyPort

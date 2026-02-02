@@ -32,10 +32,12 @@ type Config struct {
 	MaxConcurrentVisits  int           `yaml:"max_concurrent_visits"`
 	CanvasFingerprint    bool          `yaml:"canvas_fingerprint"`
 	ScrollStrategy       string        `yaml:"scroll_strategy"`
-	SendScrollEvent      bool          `yaml:"send_scroll_event"`
-	Keywords             []string      `yaml:"keywords"`
-	Duration             time.Duration `yaml:"-"`
-	RequestInterval     time.Duration `yaml:"-"`
+	SendScrollEvent       bool          `yaml:"send_scroll_event"`
+	UseSitemap            bool          `yaml:"use_sitemap"`
+	SitemapHomepageWeight int           `yaml:"sitemap_homepage_weight"` // 0-100, anasayfa yüzdesi
+	Keywords              []string      `yaml:"keywords"`
+	Duration              time.Duration `yaml:"-"`
+	RequestInterval       time.Duration `yaml:"-"`
 }
 
 // LoadFromFile YAML dosyasından config yükler
@@ -111,6 +113,12 @@ func (c *Config) ApplyDefaults() {
 	}
 	if c.MaxConcurrentVisits > 50 {
 		c.MaxConcurrentVisits = 50
+	}
+	if c.SitemapHomepageWeight <= 0 {
+		c.SitemapHomepageWeight = 60
+	}
+	if c.SitemapHomepageWeight > 100 {
+		c.SitemapHomepageWeight = 100
 	}
 	c.TargetDomain = strings.TrimSpace(strings.TrimPrefix(c.TargetDomain, "https://"))
 	c.TargetDomain = strings.TrimPrefix(c.TargetDomain, "http://")

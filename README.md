@@ -2,6 +2,7 @@
 
 [![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](https://golang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/badge/version-2.0-red)](https://github.com/eros1sh/eros-hitbot/releases)
 
 **Parasitic SEO traffic simulation tool** — Simulate organic search traffic, boost search engine rankings, and verify analytics (GA4/GTM) through realistic, keyword-driven web visits.
 
@@ -14,6 +15,7 @@
 ## Table of Contents
 
 - [Overview](#overview)
+- [What's New in 2.0](#whats-new-in-20)
 - [Features](#features)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
@@ -39,6 +41,17 @@ Eros Hit Bot is an open-source **parasitic SEO** tool that generates simulated o
 
 ---
 
+## What's New in 2.0
+
+- **Sitemap.xml support** — Optional checkbox to use sitemap. If the site has `sitemap.xml` (or a Sitemap entry in `robots.txt`), URLs are loaded from there; otherwise page discovery (crawler) is used.
+- **Homepage weight** — When sitemap is enabled, a configurable percentage of requests go to the homepage and the rest are distributed randomly across sitemap URLs (default 60% homepage).
+- **HPM (hits per minute) fix** — Token bucket enforces the actual HPM limit; a new visit starts as soon as a slot is free, and all parallel slots fill quickly at startup.
+- **Visit timeout** — Per-visit timeout increased from 30s to 90s for slow pages; reduces `context deadline exceeded` and many `ERR_TIMED_OUT` errors.
+- **Fetch blocking fix** — Document and Script are never blocked; only Image, Stylesheet, Font, and Media are blocked, fixing `ERR_BLOCKED_BY_CLIENT`.
+- **Windows-only release** — Build and release target Windows (amd64) only; simpler download and setup.
+
+---
+
 ## Features
 
 | Feature | Description |
@@ -50,6 +63,7 @@ Eros Hit Bot is an open-source **parasitic SEO** tool that generates simulated o
 | **GA4/GTM** | Automatic page_view, scroll, and custom event firing |
 | **Headless bypass** | Stealth techniques to reduce bot detection |
 | **Canvas fingerprinting** | Unique canvas/WebGL/Audio noise per visit |
+| **Sitemap.xml** | Optional: use sitemap URLs + weighted homepage traffic (2.0) |
 | **i18n** | Turkish and English UI + logs |
 | **Reports** | CSV, JSON, and HTML dashboard export |
 
@@ -146,6 +160,8 @@ Then open `http://127.0.0.1:8754` in your browser.
 | `canvasFingerprint` | Enable canvas/WebGL noise | true |
 | `scrollStrategy` | `gradual`, `fast`, `reader` | `gradual` |
 | `sendScrollEvent` | Send GA4 scroll events | true |
+| `useSitemap` | Use sitemap.xml for URLs (2.0) | false |
+| `sitemapHomepageWeight` | % of requests to homepage when sitemap used (0–100) | 60 |
 | `PROXY_HOST` | Proxy host (optional) | - |
 | `PROXY_PORT` | Proxy port | 3120 |
 | `PROXY_USER` | Proxy username | - |
@@ -221,12 +237,13 @@ eros-hitbot/
 │   ├── behavior/         # Human-like scroll, mouse
 │   ├── canvas/           # Canvas/WebGL/Audio fingerprint
 │   ├── configfiles/      # Config file bootstrapping
-│   ├── delay/            # Request interval, jitter
+│   ├── delay/            # Request interval, token bucket (HPM)
 │   ├── engagement/       # Scroll, dwell, clicks
 │   ├── fingerprint/      # UA, platform, screen
 │   ├── i18n/             # TR/EN log messages
 │   ├── referrer/         # Search/social referrer chain
 │   ├── seo/              # Keywords, organic traffic
+│   ├── sitemap/          # sitemap.xml fetch & parse (2.0)
 │   ├── stealth/          # Headless detection bypass
 │   └── useragent/        # agents.json, operaagent.json loader
 ├── assets/               # Screenshots for README

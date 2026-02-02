@@ -24,9 +24,11 @@ type ConfigJSON struct {
 	OutputDir           string   `json:"outputDir"`
 	ExportFormat        string   `json:"exportFormat"`
 	CanvasFingerprint   bool     `json:"canvasFingerprint"`
-	ScrollStrategy      string   `json:"scrollStrategy"`
-	SendScrollEvent     bool     `json:"sendScrollEvent"`
-	Keywords            []string `json:"keywords"`
+	ScrollStrategy        string   `json:"scrollStrategy"`
+	SendScrollEvent       bool     `json:"sendScrollEvent"`
+	UseSitemap            bool     `json:"useSitemap"`
+	SitemapHomepageWeight int      `json:"sitemapHomepageWeight"`
+	Keywords              []string `json:"keywords"`
 }
 
 // LoadFromJSON config.json'dan yükler; Config'e dönüştürür
@@ -50,9 +52,11 @@ func LoadFromJSON(path string) (*Config, error) {
 		ExportFormat:       j.ExportFormat,
 		MaxConcurrentVisits: j.MaxConcurrentVisits,
 		CanvasFingerprint:  j.CanvasFingerprint,
-		ScrollStrategy:     j.ScrollStrategy,
-		SendScrollEvent:    j.SendScrollEvent,
-		Keywords:           j.Keywords,
+		ScrollStrategy:        j.ScrollStrategy,
+		SendScrollEvent:       j.SendScrollEvent,
+		UseSitemap:            j.UseSitemap,
+		SitemapHomepageWeight: j.SitemapHomepageWeight,
+		Keywords:              j.Keywords,
 		ProxyHost:          j.ProxyHost,
 		ProxyPort:          j.ProxyPort,
 		ProxyUser:          j.ProxyUser,

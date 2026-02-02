@@ -1,6 +1,7 @@
 package delay
 
 import (
+	"context"
 	"math/rand"
 	"time"
 )
@@ -41,4 +42,59 @@ func RequestInterval(hitsPerMinute int) time.Duration {
 func PageLoadDelay() time.Duration {
 	base := 2 * time.Second
 	return Jitter(base, 50)
+}
+
+// TokenBucket dakikada HPM istek sınırı; başta burst = capacity (tüm slotları hemen doldur).
+type TokenBucket struct {
+	ch   chan struct{}
+	stop func()
+}
+
+// NewTokenBucket hitsPerMinute hızında token doldurur; capacity kadar burst (başta hemen N istek).
+func NewTokenBucket(ctx context.Context, hitsPerMinute, capacity int) *TokenBucket {
+	if capacity <= 0 {
+		capacity = 1
+	}
+	if hitsPerMinute <= 0 {
+		hitsPerMinute = 60
+	}
+	ch := make(chan struct{}, 256) // burst + refill için yeterli buffer
+	for i := 0; i < capacity; i++ {
+		ch <- struct{}{}
+	}
+	refillInterval := time.Minute / time.Duration(hitsPerMinute)
+	ctx, cancel := context.WithCancel(ctx)
+	ticker := time.NewTicker(refillInterval)
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				select {
+				case ch <- struct{}{}:
+				default:
+				}
+			}
+		}
+	}()
+	return &TokenBucket{ch: ch, stop: cancel}
+}
+
+// Take bir token alır; ctx iptal olursa hemen döner.
+func (tb *TokenBucket) Take(ctx context.Context) error {
+	select {
+	case <-tb.ch:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// Stop refill goroutine'ini durdurur.
+func (tb *TokenBucket) Stop() {
+	if tb.stop != nil {
+		tb.stop()
+	}
 }

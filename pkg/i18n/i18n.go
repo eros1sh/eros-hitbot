@@ -17,9 +17,11 @@ const (
 	MsgSummaryLine  = "summary_line"
 	MsgSummaryRT    = "summary_rt"
 	MsgExportErr    = "export_err"
-	MsgReportCSV    = "report_csv"
-	MsgReportJSON   = "report_json"
-	MsgReportHTML   = "report_html"
+	MsgReportCSV     = "report_csv"
+	MsgReportJSON    = "report_json"
+	MsgReportHTML    = "report_html"
+	MsgSitemapFound  = "sitemap_found"
+	MsgSitemapNone   = "sitemap_none"
 )
 
 var tr = map[string]string{
@@ -36,9 +38,11 @@ var tr = map[string]string{
 	MsgSummaryLine:  "Toplam istek: %d | Başarılı: %d | Hatalı: %d",
 	MsgSummaryRT:    "Ort. yanıt: %.0f ms | Min: %d ms | Max: %d ms",
 	MsgExportErr:    "Rapor export hatası: %s",
-	MsgReportCSV:    "Rapor kaydedildi: %s",
-	MsgReportJSON:   "Rapor kaydedildi: %s",
+	MsgReportCSV:     "Rapor kaydedildi: %s",
+	MsgReportJSON:    "Rapor kaydedildi: %s",
 	MsgReportHTML:   "HTML rapor: %s",
+	MsgSitemapFound: "Sitemap bulundu: %d URL (anasayfa ağırlığı %%%d)",
+	MsgSitemapNone:  "Sitemap bulunamadı, sayfa keşfi kullanılıyor.",
 }
 
 var en = map[string]string{
@@ -55,9 +59,11 @@ var en = map[string]string{
 	MsgSummaryLine:  "Total requests: %d | Success: %d | Failed: %d",
 	MsgSummaryRT:    "Avg response: %.0f ms | Min: %d ms | Max: %d ms",
 	MsgExportErr:    "Report export error: %s",
-	MsgReportCSV:    "Report saved: %s",
-	MsgReportJSON:   "Report saved: %s",
+	MsgReportCSV:     "Report saved: %s",
+	MsgReportJSON:    "Report saved: %s",
 	MsgReportHTML:   "HTML report: %s",
+	MsgSitemapFound: "Sitemap found: %d URLs (homepage weight %d%%)",
+	MsgSitemapNone:  "Sitemap not found, using page discovery.",
 }
 
 // T locale'e göre mesajı çevirir ve formatlar

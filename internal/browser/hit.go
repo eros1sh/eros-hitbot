@@ -23,6 +23,9 @@ import (
 	"eroshit/pkg/useragent"
 )
 
+// Varsayılan ziyaret süresi; yavaş sayfalar ve yüksek paralellik için yeterli süre.
+const defaultVisitTimeout = 90 * time.Second
+
 type HitVisitorConfig struct {
 	ProxyURL          string
 	ProxyUser         string
@@ -33,6 +36,7 @@ type HitVisitorConfig struct {
 	SendScrollEvent   bool     // GA4 scroll %75 event
 	AnalyticsManager  *analytics.Manager
 	Keywords          []string // Arama referrer için anahtar kelimeler
+	VisitTimeout      time.Duration // 0 ise defaultVisitTimeout kullanılır
 }
 
 // HitVisitor JS çalıştıran, her ziyarette farklı fingerprint, proxy destekli
@@ -162,7 +166,11 @@ func (h *HitVisitor) VisitURL(ctx context.Context, urlStr string) error {
 	tabCtx, tabCancel := chromedp.NewContext(h.allocCtx, browserOpts...)
 	defer tabCancel()
 
-	tabCtx, tabCancel2 := context.WithTimeout(tabCtx, 30*time.Second)
+	visitTimeout := h.config.VisitTimeout
+	if visitTimeout <= 0 {
+		visitTimeout = defaultVisitTimeout
+	}
+	tabCtx, tabCancel2 := context.WithTimeout(tabCtx, visitTimeout)
 	defer tabCancel2()
 
 	start := time.Now()
@@ -192,8 +200,13 @@ func (h *HitVisitor) VisitURL(ctx context.Context, urlStr string) error {
 	chromedp.ListenTarget(tabCtx, func(ev interface{}) {
 		if ev, ok := ev.(*fetch.EventRequestPaused); ok {
 			go func() {
-				block := blockTypes[ev.ResourceType]
-				if block {
+				rt := ev.ResourceType
+				// Ana belge ve script asla bloklama; yanlışlıkla sayfa yükünü kırma
+				if rt == network.ResourceTypeDocument || rt == network.ResourceTypeScript || rt == "" {
+					_ = chromedp.Run(tabCtx, fetch.ContinueRequest(ev.RequestID))
+					return
+				}
+				if blockTypes[rt] {
 					_ = chromedp.Run(tabCtx, fetch.FailRequest(ev.RequestID, network.ErrorReasonBlockedByClient))
 				} else {
 					_ = chromedp.Run(tabCtx, fetch.ContinueRequest(ev.RequestID))

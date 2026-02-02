@@ -337,6 +337,16 @@
               <span id="labelScrollEvent">—</span>
             </label>
           </div>
+          <div class="field field-check">
+            <label class="checkbox-label">
+              <input type="checkbox" id="useSitemap">
+              <span id="labelUseSitemap">—</span>
+            </label>
+          </div>
+          <div class="field">
+            <label for="sitemapHomepageWeight" id="labelSitemapHomepageWeight">—</label>
+            <input type="number" id="sitemapHomepageWeight" placeholder="60" min="0" max="100" value="60" title="Anasayfaya gidecek istek yüzdesi">
+          </div>
           <div class="field">
             <label for="proxyHost" id="labelProxyHost">—</label>
             <input type="text" id="proxyHost" placeholder="proxy.example.com" autocomplete="off">
@@ -420,6 +430,8 @@
         labelKeywords: 'Anahtar Kelimeler (virgül veya satır ile ayırın)',
         labelCanvasFp: 'Canvas Fingerprint',
         labelScrollEvent: 'Scroll Event (GA4)',
+        labelUseSitemap: 'Sitemap.xml kullan (varsa sitemap URL\'lerine de istek)',
+        labelSitemapHomepageWeight: 'Anasayfa ağırlığı (%)',
         btnStart: 'Başlat',
         btnStop: 'Durdur',
         cardMetrics: 'Canlı Metrikler',
@@ -465,6 +477,8 @@
         labelKeywords: 'Keywords (comma or newline separated)',
         labelCanvasFp: 'Canvas Fingerprint',
         labelScrollEvent: 'Scroll Event (GA4)',
+        labelUseSitemap: 'Use sitemap.xml (request sitemap URLs if found)',
+        labelSitemapHomepageWeight: 'Homepage weight (%)',
         btnStart: 'Start',
         btnStop: 'Stop',
         cardMetrics: 'Live Metrics',
@@ -534,6 +548,8 @@
       document.getElementById('labelKeywords').textContent = L.labelKeywords;
       document.getElementById('labelCanvasFp').textContent = L.labelCanvasFp;
       document.getElementById('labelScrollEvent').textContent = L.labelScrollEvent;
+      document.getElementById('labelUseSitemap').textContent = L.labelUseSitemap;
+      document.getElementById('labelSitemapHomepageWeight').textContent = L.labelSitemapHomepageWeight;
       document.getElementById('btnStart').textContent = L.btnStart;
       document.getElementById('btnStop').textContent = L.btnStop;
       document.getElementById('cardMetrics').textContent = L.cardMetrics;
@@ -599,6 +615,8 @@
     const keywords = document.getElementById('keywords');
     const canvasFingerprint = document.getElementById('canvasFingerprint');
     const sendScrollEvent = document.getElementById('sendScrollEvent');
+    const useSitemap = document.getElementById('useSitemap');
+    const sitemapHomepageWeight = document.getElementById('sitemapHomepageWeight');
 
     const STORAGE_KEY = 'eroshit_form';
     const btnStart = document.getElementById('btnStart');
@@ -635,6 +653,8 @@
           keywords.value = Array.isArray(c.keywords) ? c.keywords.join('\n') : (c.keywords_str || '');
           canvasFingerprint.checked = !!c.canvas_fingerprint;
           sendScrollEvent.checked = !!c.send_scroll_event;
+          useSitemap.checked = !!c.use_sitemap;
+          sitemapHomepageWeight.value = (c.sitemap_homepage_weight ?? 60).toString();
           proxyHost.value = c.proxy_host ?? '';
           proxyPort.value = c.proxy_port ?? '';
           proxyUser.value = c.proxy_user ?? '';
@@ -660,6 +680,8 @@
           keywords: parseKeywords(keywords.value),
           canvas_fingerprint: canvasFingerprint.checked,
           send_scroll_event: sendScrollEvent.checked,
+          use_sitemap: useSitemap.checked,
+          sitemap_homepage_weight: parseInt(sitemapHomepageWeight.value) || 60,
           proxy_host: proxyHost.value.trim(),
           proxy_port: parseInt(proxyPort.value) || 0,
           proxy_user: proxyUser.value.trim(),
@@ -685,6 +707,8 @@
         keywords.value = Array.isArray(c.keywords) ? c.keywords.join('\n') : '';
         canvasFingerprint.checked = !!c.canvas_fingerprint;
         sendScrollEvent.checked = !!c.send_scroll_event;
+        useSitemap.checked = !!c.use_sitemap;
+        sitemapHomepageWeight.value = String(c.sitemap_homepage_weight ?? 60);
         proxyHost.value = c.proxy_host || '';
         proxyPort.value = c.proxy_port || '';
         proxyUser.value = c.proxy_user || '';
@@ -714,6 +738,8 @@
           keywords: parseKeywords(keywords.value),
           canvas_fingerprint: canvasFingerprint.checked,
           send_scroll_event: sendScrollEvent.checked,
+          use_sitemap: useSitemap.checked,
+          sitemap_homepage_weight: parseInt(sitemapHomepageWeight.value) || 60,
           proxy_host: proxyHost.value.trim(),
           proxy_port: parseInt(proxyPort.value) || 0,
           proxy_user: proxyUser.value.trim(),
@@ -810,7 +836,10 @@
     [domain, gtagId, maxPages, duration, hpm, maxConcurrent, outputDir, exportFormat, scrollStrategy, keywords, proxyHost, proxyPort, proxyUser, proxyPass].forEach(function(el) {
       if (el) el.addEventListener('change', saveToStorage);
     });
-    [canvasFingerprint, sendScrollEvent].forEach(function(el) {
+    [canvasFingerprint, sendScrollEvent, useSitemap].forEach(function(el) {
+      if (el) el.addEventListener('change', saveToStorage);
+    });
+    [sitemapHomepageWeight].forEach(function(el) {
       if (el) el.addEventListener('change', saveToStorage);
     });
 
