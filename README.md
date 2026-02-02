@@ -74,12 +74,8 @@ Eros Hit Bot is an open-source **parasitic SEO** tool that generates simulated o
 ### Option 1: Download Pre-built Binary (Recommended)
 
 1. Go to [Releases](https://github.com/eros1sh/eros-hitbot/releases)
-2. Download the appropriate build for your OS:
-   - `eros-hitbot-windows-amd64.zip` — Windows
-   - `eros-hitbot-linux-amd64.tar.gz` — Linux
-   - `eros-hitbot-darwin-amd64.tar.gz` — macOS (Intel)
-   - `eros-hitbot-darwin-arm64.tar.gz` — macOS (Apple Silicon)
-3. Extract and run the executable
+2. Download **Windows** build: `eros-hitbot-windows-amd64.zip`
+3. Extract the zip and run `eros-hitbot-windows-amd64.exe`
 
 ### Option 2: Build from Source
 
@@ -88,8 +84,7 @@ Eros Hit Bot is an open-source **parasitic SEO** tool that generates simulated o
 ```bash
 git clone https://github.com/eros1sh/eros-hitbot.git
 cd eros-hitbot
-go build -o eroshit ./cmd/eroshit
-# Windows: eroshit.exe
+go build -o eroshit.exe ./cmd/eroshit
 ```
 
 ---
@@ -196,18 +191,15 @@ Change the web server port (default 8754):
 
 ## Releases
 
-Pre-built executables are available in the [Releases](https://github.com/eros1sh/eros-hitbot/releases) section.
+Pre-built **Windows** executable is available in the [Releases](https://github.com/eros1sh/eros-hitbot/releases) section.
 
-To create a new release: push a version tag (e.g. `v1.0.0`). GitHub Actions will build and attach binaries for Windows, Linux, and macOS.
+To create a new release: push a version tag (e.g. `v1.0.0`). GitHub Actions will build the Windows binary and attach `eros-hitbot-windows-amd64.zip`.
 
 | Platform | File |
 |----------|------|
 | Windows (amd64) | `eros-hitbot-windows-amd64.zip` |
-| Linux (amd64) | `eros-hitbot-linux-amd64.tar.gz` |
-| macOS (Intel) | `eros-hitbot-darwin-amd64.tar.gz` |
-| macOS (Apple Silicon) | `eros-hitbot-darwin-arm64.tar.gz` |
 
-Download, extract, and run. Ensure Chrome/Chromium is installed for headless browsing.
+Download, extract, and run `eros-hitbot-windows-amd64.exe`. Ensure Chrome/Chromium is installed for headless browsing.
 
 ---
 
