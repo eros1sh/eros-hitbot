@@ -161,7 +161,7 @@ func (s *SessionManager) ExtractSession(ctx context.Context, session *Session) e
 		return nil
 	}
 
-	cookies, err := network.GetAllCookies().Do(ctx)
+	cookies, err := network.GetCookies().Do(ctx)
 	if err == nil && len(cookies) > 0 {
 		session.Cookies = make([]CookieStore, 0, len(cookies))
 		for _, c := range cookies {
