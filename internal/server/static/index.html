@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Eros - Hit Bot</title>
+  <link rel="icon" href="/logo.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0b;
+      --bg-card: #111113;
+      --bg-input: #18181b;
+      --border: #27272a;
+      --text: #fafafa;
+      --text-muted: #71717a;
+      --accent: #dc2626;
+      --accent-hover: #ef4444;
+      --success: #22c55e;
+      --error: #ef4444;
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+      background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(220,38,38,0.08), transparent);
+    }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 2rem; }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      margin-bottom: 2.5rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      width: 64px;
+      height: 64px;
+      border-radius: var(--radius);
+      object-fit: cover;
+      border: 1px solid var(--border);
+    }
+
+    .brand h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; }
+    .brand p { color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem; }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 0.5rem; }
+    .field label { font-size: 0.85rem; font-weight: 500; color: var(--text-muted); }
+
+    .field input, .field select {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+      transition: border-color 0.2s;
+    }
+
+    .field input:focus, .field select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .field input::placeholder { color: var(--text-muted); opacity: 0.7; }
+
+    .field-check { justify-content: center; }
+    .field-full { grid-column: 1 / -1; }
+    .field-full textarea {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .checkbox-label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem; color: var(--text-muted); }
+    .checkbox-label input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); }
+
+    .actions { display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap; }
+    .lang-switch { margin-left: auto; }
+    .lang-switch .btn-lang {
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      cursor: pointer;
+      margin-left: 0.25rem;
+    }
+    .lang-switch .btn-lang:hover, .lang-switch .btn-lang.active {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .btn-secondary {
+      background: var(--bg-input);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: var(--border); }
+    .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-lang-select {
+      padding: 1rem 2rem;
+      font-size: 1.1rem;
+      min-width: 140px;
+      border-radius: var(--radius);
+      margin: 0.5rem;
+    }
+
+    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; }
+    .metric { background: var(--bg-input); border-radius: 8px; padding: 1rem; text-align: center; }
+    .metric-value { font-family: 'JetBrains Mono', monospace; font-size: 1.5rem; font-weight: 600; color: var(--accent); }
+    .metric-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
+
+    .log-area {
+      background: #080809;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      height: 280px;
+      overflow-y: auto;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+    .log-area .log-line { white-space: pre-wrap; word-break: break-all; }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      margin-left: 1rem;
+    }
+    .status-badge.running { background: rgba(34, 197, 94, 0.15); color: var(--success); }
+    .status-badge.stopped { background: rgba(113, 113, 122, 0.2); color: var(--text-muted); }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pulse 2s infinite; }
+    .status-badge.stopped .status-dot { animation: none; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    /* Language selection modal */
+    .lang-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      backdrop-filter: blur(8px);
+    }
+
+    .lang-modal {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2.5rem;
+      text-align: center;
+      max-width: 420px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+
+    .lang-modal h2 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .lang-modal p {
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+      font-size: 0.95rem;
+    }
+
+    .lang-modal .logo-modal {
+      width: 80px;
+      height: 80px;
+      border-radius: var(--radius);
+      margin-bottom: 1.5rem;
+      object-fit: cover;
+      border: 1px solid var(--border);
+    }
+
+    .lang-buttons { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; }
+
+    .main-app { display: none; }
+    .main-app.visible { display: block; }
+  </style>
+</head>
+<body>
+  <!-- Language selection modal -->
+  <div class="lang-modal-overlay" id="langModal">
+    <div class="lang-modal">
+      <img src="/logo.png" alt="Eros - Hit Botu" class="logo-modal">
+      <h2 id="langModalTitle">Dil Seçin / Select Language</h2>
+      <p id="langModalSub">Uygulama dilini seçin / Choose application language</p>
+      <div class="lang-buttons">
+        <button class="btn btn-primary btn-lang-select" id="btnLangTR">Türkçe</button>
+        <button class="btn btn-secondary btn-lang-select" id="btnLangEN">English</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="main-app" id="mainApp">
+    <div class="container">
+      <header>
+        <img src="/logo.png" alt="Eros - Hit Botu" class="logo">
+        <div class="brand">
+          <h1>Eros - Hit Botu <span class="status-badge stopped" id="statusBadge"><span class="status-dot"></span> <span id="statusText">—</span></span></h1>
+          <p id="brandSubtitle">—</p>
+        </div>
+      </header>
+
+      <div class="card">
+        <h2 id="cardParams">—</h2>
+        <div class="form-grid">
+          <div class="field">
+            <label for="domain" id="labelDomain">—</label>
+            <input type="text" id="domain" placeholder="example.com" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="gtagId" id="labelGtag">—</label>
+            <input type="text" id="gtagId" placeholder="G-XXXXXXXXXXX" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="maxPages" id="labelMaxPages">—</label>
+            <input type="number" id="maxPages" placeholder="5" min="1" max="100" value="5">
+          </div>
+          <div class="field">
+            <label for="duration" id="labelDuration">—</label>
+            <input type="number" id="duration" placeholder="60" min="1" value="60">
+          </div>
+          <div class="field">
+            <label for="hpm" id="labelHpm">—</label>
+            <input type="number" id="hpm" placeholder="35" min="1" max="120" value="35">
+          </div>
+          <div class="field">
+            <label for="maxConcurrent" id="labelMaxConcurrent">—</label>
+            <input type="number" id="maxConcurrent" placeholder="10" min="1" max="50" value="10" title="Paralel tarayıcı sayısı">
+          </div>
+          <div class="field">
+            <label for="outputDir" id="labelOutputDir">—</label>
+            <input type="text" id="outputDir" placeholder="./reports" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="exportFormat" id="labelExportFormat">—</label>
+            <select id="exportFormat">
+              <option value="both" id="optExportBoth">CSV + JSON + HTML</option>
+              <option value="csv" id="optExportCsv">CSV</option>
+              <option value="json" id="optExportJson">JSON</option>
+              <option value="html" id="optExportHtml">HTML</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="scrollStrategy" id="labelScrollStrategy">—</label>
+            <select id="scrollStrategy">
+              <option value="gradual" id="optScrollGradual">Normal (Kademeli)</option>
+              <option value="fast" id="optScrollFast">Hızlı</option>
+              <option value="reader" id="optScrollReader">Okuyucu (Yavaş)</option>
+            </select>
+          </div>
+          <div class="field field-full">
+            <label for="keywords" id="labelKeywords">—</label>
+            <textarea id="keywords" rows="3" placeholder="target keyword, long tail keyword, brand name" style="resize:vertical;min-height:60px"></textarea>
+          </div>
+          <div class="field field-check">
+            <label class="checkbox-label">
+              <input type="checkbox" id="canvasFingerprint">
+              <span id="labelCanvasFp">—</span>
+            </label>
+          </div>
+          <div class="field field-check">
+            <label class="checkbox-label">
+              <input type="checkbox" id="sendScrollEvent">
+              <span id="labelScrollEvent">—</span>
+            </label>
+          </div>
+          <div class="field">
+            <label for="proxyHost" id="labelProxyHost">—</label>
+            <input type="text" id="proxyHost" placeholder="proxy.example.com" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="proxyPort" id="labelProxyPort">—</label>
+            <input type="number" id="proxyPort" placeholder="3120" min="1" max="65535" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="proxyUser" id="labelProxyUser">—</label>
+            <input type="text" id="proxyUser" placeholder="" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="proxyPass" id="labelProxyPass">—</label>
+            <input type="password" id="proxyPass" placeholder="" autocomplete="off">
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary" id="btnStart">—</button>
+          <button class="btn btn-secondary" id="btnStop" disabled>—</button>
+          <div class="lang-switch">
+            <button class="btn-lang active" id="btnLangTRSmall" data-lang="tr">TR</button>
+            <button class="btn-lang" id="btnLangENSmall" data-lang="en">EN</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 id="cardMetrics">—</h2>
+        <div class="metrics">
+          <div class="metric">
+            <div class="metric-value" id="metricTotal">0</div>
+            <div class="metric-label" id="metricLabelTotal">—</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="metricSuccess">0</div>
+            <div class="metric-label" id="metricLabelSuccess">—</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="metricFailed">0</div>
+            <div class="metric-label" id="metricLabelFailed">—</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="metricAvg">0 ms</div>
+            <div class="metric-label" id="metricLabelAvg">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 id="cardLog">—</h2>
+        <div class="log-area" id="logArea"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const LANG_KEY = 'eroshit_lang';
+
+    const t = {
+      tr: {
+        langSelectTitle: 'Dil Seçin / Select Language',
+        langSelectSub: 'Uygulama dilini seçin / Choose application language',
+        brandSubtitle: 'Web Trafik Simülasyon Botu',
+        statusWaiting: 'Beklemede',
+        statusRunning: 'Çalışıyor',
+        cardParams: 'Test Parametreleri',
+        labelDomain: 'Hedef Domain',
+        labelMaxPages: 'Max Sayfa',
+        labelDuration: 'Süre (dakika)',
+        labelHpm: 'İstek / Dakika',
+        labelProxyHost: 'Proxy Host',
+        labelProxyPort: 'Proxy Port',
+        labelProxyUser: 'Proxy Kullanıcı',
+        labelProxyPass: 'Proxy Şifre',
+        labelGtag: 'GA4 / GTAG Kodu',
+        labelMaxConcurrent: 'Paralel Tarayıcı',
+        labelOutputDir: 'Rapor Klasörü',
+        labelExportFormat: 'Rapor Formatı',
+        labelScrollStrategy: 'Scroll Stili',
+        labelKeywords: 'Anahtar Kelimeler (virgül veya satır ile ayırın)',
+        labelCanvasFp: 'Canvas Fingerprint',
+        labelScrollEvent: 'Scroll Event (GA4)',
+        btnStart: 'Başlat',
+        btnStop: 'Durdur',
+        cardMetrics: 'Canlı Metrikler',
+        metricTotal: 'Toplam İstek',
+        metricSuccess: 'Başarılı',
+        metricFailed: 'Hatalı',
+        metricAvg: 'Ort. Yanıt',
+        cardLog: 'Log',
+        errorDomain: 'Hata: Hedef domain girin.',
+        errorStart: 'Başlatma hatası',
+        errorStop: 'Durdurma hatası',
+        logStarted: 'Simülasyon başlatıldı.',
+        logStopped: 'Simülasyon durduruldu.',
+        logConfigError: 'Config yüklenemedi',
+        optExportBoth: 'CSV + JSON + HTML',
+        optExportCsv: 'CSV',
+        optExportJson: 'JSON',
+        optExportHtml: 'HTML',
+        optScrollGradual: 'Normal (Kademeli)',
+        optScrollFast: 'Hızlı',
+        optScrollReader: 'Okuyucu (Yavaş)'
+      },
+      en: {
+        langSelectTitle: 'Dil Seçin / Select Language',
+        langSelectSub: 'Uygulama dilini seçin / Choose application language',
+        brandSubtitle: 'Web Traffic Simulation Bot',
+        statusWaiting: 'Waiting',
+        statusRunning: 'Running',
+        cardParams: 'Test Parameters',
+        labelDomain: 'Target Domain',
+        labelMaxPages: 'Max Pages',
+        labelDuration: 'Duration (minutes)',
+        labelHpm: 'Requests / Minute',
+        labelProxyHost: 'Proxy Host',
+        labelProxyPort: 'Proxy Port',
+        labelProxyUser: 'Proxy User',
+        labelProxyPass: 'Proxy Password',
+        labelGtag: 'GA4 / GTAG Code',
+        labelMaxConcurrent: 'Parallel Browsers',
+        labelOutputDir: 'Report Folder',
+        labelExportFormat: 'Report Format',
+        labelScrollStrategy: 'Scroll Style',
+        labelKeywords: 'Keywords (comma or newline separated)',
+        labelCanvasFp: 'Canvas Fingerprint',
+        labelScrollEvent: 'Scroll Event (GA4)',
+        btnStart: 'Start',
+        btnStop: 'Stop',
+        cardMetrics: 'Live Metrics',
+        metricTotal: 'Total Requests',
+        metricSuccess: 'Successful',
+        metricFailed: 'Failed',
+        metricAvg: 'Avg Response',
+        cardLog: 'Log',
+        errorDomain: 'Error: Enter target domain.',
+        errorStart: 'Start error',
+        errorStop: 'Stop error',
+        logStarted: 'Simulation started.',
+        logStopped: 'Simulation stopped.',
+        logConfigError: 'Failed to load config',
+        optExportBoth: 'CSV + JSON + HTML',
+        optExportCsv: 'CSV',
+        optExportJson: 'JSON',
+        optExportHtml: 'HTML',
+        optScrollGradual: 'Normal (Gradual)',
+        optScrollFast: 'Fast',
+        optScrollReader: 'Reader (Slow)'
+      }
+    };
+
+    let lang = localStorage.getItem(LANG_KEY) || '';
+    let statusInterval = null;
+    let eventSource = null;
+
+    const langModal = document.getElementById('langModal');
+    const mainApp = document.getElementById('mainApp');
+
+    function showLangModal() {
+      langModal.style.display = 'flex';
+      mainApp.classList.remove('visible');
+    }
+
+    function hideLangModal() {
+      langModal.style.display = 'none';
+      mainApp.classList.add('visible');
+    }
+
+    function setLang(newLang) {
+      lang = newLang;
+      localStorage.setItem(LANG_KEY, lang);
+      applyTranslations();
+      hideLangModal();
+    }
+
+    function applyTranslations() {
+      const L = t[lang] || t.tr;
+      document.getElementById('brandSubtitle').textContent = L.brandSubtitle;
+      document.getElementById('statusText').textContent = L.statusWaiting;
+      document.getElementById('cardParams').textContent = L.cardParams;
+      document.getElementById('labelDomain').textContent = L.labelDomain;
+      document.getElementById('labelMaxPages').textContent = L.labelMaxPages;
+      document.getElementById('labelDuration').textContent = L.labelDuration;
+      document.getElementById('labelHpm').textContent = L.labelHpm;
+      document.getElementById('labelProxyHost').textContent = L.labelProxyHost;
+      document.getElementById('labelProxyPort').textContent = L.labelProxyPort;
+      document.getElementById('labelProxyUser').textContent = L.labelProxyUser;
+      document.getElementById('labelProxyPass').textContent = L.labelProxyPass;
+      document.getElementById('labelGtag').textContent = L.labelGtag;
+      document.getElementById('labelMaxConcurrent').textContent = L.labelMaxConcurrent;
+      document.getElementById('labelOutputDir').textContent = L.labelOutputDir;
+      document.getElementById('labelExportFormat').textContent = L.labelExportFormat;
+      document.getElementById('labelScrollStrategy').textContent = L.labelScrollStrategy;
+      document.getElementById('labelKeywords').textContent = L.labelKeywords;
+      document.getElementById('labelCanvasFp').textContent = L.labelCanvasFp;
+      document.getElementById('labelScrollEvent').textContent = L.labelScrollEvent;
+      document.getElementById('btnStart').textContent = L.btnStart;
+      document.getElementById('btnStop').textContent = L.btnStop;
+      document.getElementById('cardMetrics').textContent = L.cardMetrics;
+      document.getElementById('metricLabelTotal').textContent = L.metricTotal;
+      document.getElementById('metricLabelSuccess').textContent = L.metricSuccess;
+      document.getElementById('metricLabelFailed').textContent = L.metricFailed;
+      document.getElementById('metricLabelAvg').textContent = L.metricAvg;
+      document.getElementById('cardLog').textContent = L.cardLog;
+      document.querySelector('title').textContent = lang === 'en' ? 'Eros - Hit Bot' : 'Eros - Hit Botu';
+      document.documentElement.lang = lang === 'en' ? 'en' : 'tr';
+      if (L.optExportBoth) {
+        document.getElementById('optExportBoth').textContent = L.optExportBoth;
+        document.getElementById('optExportCsv').textContent = L.optExportCsv;
+        document.getElementById('optExportJson').textContent = L.optExportJson;
+        document.getElementById('optExportHtml').textContent = L.optExportHtml;
+        document.getElementById('optScrollGradual').textContent = L.optScrollGradual;
+        document.getElementById('optScrollFast').textContent = L.optScrollFast;
+        document.getElementById('optScrollReader').textContent = L.optScrollReader;
+      }
+    }
+
+    document.getElementById('btnLangTR').addEventListener('click', () => setLang('tr'));
+    document.getElementById('btnLangEN').addEventListener('click', () => setLang('en'));
+
+    document.getElementById('btnLangTRSmall').addEventListener('click', () => { setLang('tr'); updateLangButtons(); });
+    document.getElementById('btnLangENSmall').addEventListener('click', () => { setLang('en'); updateLangButtons(); });
+
+    function updateLangButtons() {
+      document.getElementById('btnLangTRSmall').classList.toggle('active', lang === 'tr');
+      document.getElementById('btnLangENSmall').classList.toggle('active', lang === 'en');
+    }
+
+    // URL'den ?lang= parametresi (program başlarken açılan sayfa)
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlLang = urlParams.get('lang');
+    if (urlLang === 'tr' || urlLang === 'en') {
+      lang = urlLang;
+      localStorage.setItem(LANG_KEY, lang);
+      applyTranslations();
+      hideLangModal();
+      updateLangButtons();
+    } else if (!lang) {
+      showLangModal();
+    } else {
+      applyTranslations();
+      hideLangModal();
+      updateLangButtons();
+    }
+
+    const domain = document.getElementById('domain');
+    const maxPages = document.getElementById('maxPages');
+    const duration = document.getElementById('duration');
+    const hpm = document.getElementById('hpm');
+    const gtagId = document.getElementById('gtagId');
+    const proxyHost = document.getElementById('proxyHost');
+    const proxyPort = document.getElementById('proxyPort');
+    const proxyUser = document.getElementById('proxyUser');
+    const proxyPass = document.getElementById('proxyPass');
+    const maxConcurrent = document.getElementById('maxConcurrent');
+    const outputDir = document.getElementById('outputDir');
+    const exportFormat = document.getElementById('exportFormat');
+    const scrollStrategy = document.getElementById('scrollStrategy');
+    const keywords = document.getElementById('keywords');
+    const canvasFingerprint = document.getElementById('canvasFingerprint');
+    const sendScrollEvent = document.getElementById('sendScrollEvent');
+
+    const STORAGE_KEY = 'eroshit_form';
+    const btnStart = document.getElementById('btnStart');
+    const btnStop = document.getElementById('btnStop');
+    const statusBadge = document.getElementById('statusBadge');
+    const statusText = document.getElementById('statusText');
+    const logArea = document.getElementById('logArea');
+    const metricTotal = document.getElementById('metricTotal');
+    const metricSuccess = document.getElementById('metricSuccess');
+    const metricFailed = document.getElementById('metricFailed');
+    const metricAvg = document.getElementById('metricAvg');
+
+    function L() { return t[lang] || t.tr; }
+
+    function parseKeywords(s) {
+      if (!s || typeof s !== 'string') return [];
+      return s.split(/[\n,;]+/).map(k => k.trim()).filter(k => k);
+    }
+
+    function loadFromStorage() {
+      try {
+        const s = localStorage.getItem(STORAGE_KEY);
+        if (s) {
+          const c = JSON.parse(s);
+          domain.value = c.domain ?? 'example.com';
+          gtagId.value = c.gtag_id ?? 'G-5WW6MDM5EN';
+          maxPages.value = c.max_pages ?? 5;
+          duration.value = c.duration_minutes ?? 60;
+          hpm.value = c.hits_per_minute ?? 35;
+          maxConcurrent.value = c.max_concurrent_visits ?? 10;
+          outputDir.value = c.output_dir ?? './reports';
+          exportFormat.value = c.export_format ?? 'both';
+          scrollStrategy.value = c.scroll_strategy ?? 'gradual';
+          keywords.value = Array.isArray(c.keywords) ? c.keywords.join('\n') : (c.keywords_str || '');
+          canvasFingerprint.checked = !!c.canvas_fingerprint;
+          sendScrollEvent.checked = !!c.send_scroll_event;
+          proxyHost.value = c.proxy_host ?? '';
+          proxyPort.value = c.proxy_port ?? '';
+          proxyUser.value = c.proxy_user ?? '';
+          proxyPass.value = c.proxy_pass ?? '';
+          return true;
+        }
+      } catch (_) {}
+      return false;
+    }
+
+    function saveToStorage() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          domain: domain.value.trim(),
+          gtag_id: gtagId.value.trim(),
+          max_pages: parseInt(maxPages.value) || 5,
+          duration_minutes: parseInt(duration.value) || 60,
+          hits_per_minute: parseInt(hpm.value) || 35,
+          max_concurrent_visits: parseInt(maxConcurrent.value) || 10,
+          output_dir: outputDir.value.trim() || './reports',
+          export_format: exportFormat.value || 'both',
+          scroll_strategy: scrollStrategy.value || 'gradual',
+          keywords: parseKeywords(keywords.value),
+          canvas_fingerprint: canvasFingerprint.checked,
+          send_scroll_event: sendScrollEvent.checked,
+          proxy_host: proxyHost.value.trim(),
+          proxy_port: parseInt(proxyPort.value) || 0,
+          proxy_user: proxyUser.value.trim(),
+          proxy_pass: proxyPass.value
+        }));
+      } catch (_) {}
+    }
+
+    async function loadConfig() {
+      if (loadFromStorage()) return;
+      try {
+        const r = await fetch('/api/config');
+        const c = await r.json();
+        domain.value = c.target_domain || 'example.com';
+        gtagId.value = c.gtag_id || 'G-5WW6MDM5EN';
+        maxPages.value = c.max_pages || 5;
+        duration.value = c.duration_minutes || 60;
+        hpm.value = c.hits_per_minute || 35;
+        maxConcurrent.value = c.max_concurrent_visits || 10;
+        outputDir.value = c.output_dir || './reports';
+        exportFormat.value = c.export_format || 'both';
+        scrollStrategy.value = c.scroll_strategy || 'gradual';
+        keywords.value = Array.isArray(c.keywords) ? c.keywords.join('\n') : '';
+        canvasFingerprint.checked = !!c.canvas_fingerprint;
+        sendScrollEvent.checked = !!c.send_scroll_event;
+        proxyHost.value = c.proxy_host || '';
+        proxyPort.value = c.proxy_port || '';
+        proxyUser.value = c.proxy_user || '';
+        proxyPass.value = c.proxy_pass || '';
+      } catch (e) {
+        log(L().logConfigError + ': ' + e.message);
+        domain.value = 'example.com';
+        gtagId.value = 'G-5WW6MDM5EN';
+      }
+    }
+
+    async function saveConfig() {
+      saveToStorage();
+      await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          target_domain: domain.value.trim(),
+          gtag_id: gtagId.value.trim(),
+          max_pages: parseInt(maxPages.value) || 5,
+          duration_minutes: parseInt(duration.value) || 60,
+          hits_per_minute: parseInt(hpm.value) || 35,
+          max_concurrent_visits: parseInt(maxConcurrent.value) || 10,
+          output_dir: outputDir.value.trim() || './reports',
+          export_format: exportFormat.value || 'both',
+          scroll_strategy: scrollStrategy.value || 'gradual',
+          keywords: parseKeywords(keywords.value),
+          canvas_fingerprint: canvasFingerprint.checked,
+          send_scroll_event: sendScrollEvent.checked,
+          proxy_host: proxyHost.value.trim(),
+          proxy_port: parseInt(proxyPort.value) || 0,
+          proxy_user: proxyUser.value.trim(),
+          proxy_pass: proxyPass.value
+        })
+      });
+    }
+
+    function log(msg) {
+      const line = document.createElement('div');
+      line.className = 'log-line';
+      const locale = lang === 'en' ? 'en-US' : 'tr-TR';
+      line.textContent = '[' + new Date().toLocaleTimeString(locale) + '] ' + msg;
+      logArea.appendChild(line);
+      logArea.scrollTop = logArea.scrollHeight;
+    }
+
+    async function start() {
+      await saveConfig();
+      if (!domain.value.trim()) {
+        log(L().errorDomain);
+        return;
+      }
+      try {
+        const r = await fetch('/api/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lang: lang || 'tr' })
+        });
+        const text = await r.text();
+        const data = (() => { try { return JSON.parse(text); } catch (_) { return {}; } })();
+        if (!r.ok) throw new Error(data.error || data.message || text || r.statusText);
+        setRunning(true);
+        log(L().logStarted);
+        connectLogs();
+        pollStatus();
+      } catch (e) {
+        log(L().errorStart + ': ' + (e.message || e));
+      }
+    }
+
+    async function stop() {
+      try {
+        await fetch('/api/stop', { method: 'POST' });
+        setRunning(false);
+        if (eventSource) eventSource.close();
+        if (statusInterval) clearInterval(statusInterval);
+        log(L().logStopped);
+      } catch (e) {
+        log(L().errorStop + ': ' + e.message);
+      }
+    }
+
+    function setRunning(running) {
+      btnStart.disabled = running;
+      btnStop.disabled = !running;
+      statusBadge.className = 'status-badge ' + (running ? 'running' : 'stopped');
+      statusText.textContent = running ? L().statusRunning : L().statusWaiting;
+    }
+
+    function connectLogs() {
+      if (eventSource) eventSource.close();
+      eventSource = new EventSource('/api/logs');
+      eventSource.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          log(msg);
+        } catch (_) {
+          log(e.data);
+        }
+      };
+      eventSource.onerror = () => { eventSource.close(); };
+    }
+
+    async function pollStatus() {
+      const update = async () => {
+        try {
+          const r = await fetch('/api/status');
+          const s = await r.json();
+          metricTotal.textContent = s.total_hits ?? 0;
+          metricSuccess.textContent = s.success_hits ?? 0;
+          metricFailed.textContent = s.failed_hits ?? 0;
+          metricAvg.textContent = (s.avg_response_ms ?? 0).toFixed(0) + ' ms';
+          if (!s.running && btnStart.disabled) setRunning(false);
+        } catch (_) {}
+      };
+      statusInterval = setInterval(update, 2000);
+      await update();
+    }
+
+    btnStart.addEventListener('click', start);
+    btnStop.addEventListener('click', stop);
+
+    [domain, gtagId, maxPages, duration, hpm, maxConcurrent, outputDir, exportFormat, scrollStrategy, keywords, proxyHost, proxyPort, proxyUser, proxyPass].forEach(function(el) {
+      if (el) el.addEventListener('change', saveToStorage);
+    });
+    [canvasFingerprint, sendScrollEvent].forEach(function(el) {
+      if (el) el.addEventListener('change', saveToStorage);
+    });
+
+    loadConfig();
+  </script>
+</body>
+</html>

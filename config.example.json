@@ -1,0 +1,18 @@
+{
+  "PROXY_HOST": "proxy.example.com",
+  "PROXY_PORT": 3120,
+  "PROXY_USER": "your_proxy_username",
+  "PROXY_PASS": "your_proxy_password",
+  "targetDomain": "example.com",
+  "fallbackGAID": "G-XXXXXXXXXX",
+  "maxPages": 5,
+  "durationMinutes": 60,
+  "hitsPerMinute": 35,
+  "maxConcurrentVisits": 10,
+  "outputDir": "./reports",
+  "exportFormat": "both",
+  "canvasFingerprint": true,
+  "scrollStrategy": "gradual",
+  "sendScrollEvent": true,
+  "keywords": ["your target keyword", "another keyword"]
+}

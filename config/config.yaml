@@ -1,0 +1,18 @@
+
+target_domain: "example.com"
+max_pages: 5                    # Google'da taranacak public sayfa sayısı
+duration_minutes: 1440          # Test süresi (dakika) - 1440 = 24 saat
+hits_per_minute: 35             # Dakikadaki istek sayısı (kademeli artırılabilir)
+
+# Performans optimizasyonu
+disable_images: true            # Görsel yükleme devre dışı (Colly varsayılan davranışı)
+disable_js_execution: true      # JS çalıştırma yok (Colly headless değil, sadece HTML)
+
+# Proxy (opsiyonel - etik kullanım için)
+proxy_enabled: false
+# proxy_url: "http://user:pass@proxy.example.com:8080"
+
+# Raporlama
+log_level: "info"               # debug | info | warn | error
+export_format: "both"           # csv | json | both
+output_dir: "./reports"

@@ -1,0 +1,31 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+eroshit
+
+# User config (contains credentials - use config.example.json as template)
+config.json
+agents.json
+operaagent.json
+
+# Reports
+reports/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Go
+vendor/
+*.test
+*.out
+coverage.txt
+
+# OS
+.DS_Store
+Thumbs.db

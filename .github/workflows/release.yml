@@ -1,0 +1,51 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Build
+        env:
+          CGO_ENABLED: 0
+        run: |
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o eros-hitbot-linux-amd64 ./cmd/eroshit
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o eros-hitbot-windows-amd64.exe ./cmd/eroshit
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o eros-hitbot-darwin-amd64 ./cmd/eroshit
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o eros-hitbot-darwin-arm64 ./cmd/eroshit
+
+      - name: Create archives
+        run: |
+          zip eros-hitbot-windows-amd64.zip eros-hitbot-windows-amd64.exe config.example.json agents.json.example operaagent.json.example
+          tar -czvf eros-hitbot-linux-amd64.tar.gz eros-hitbot-linux-amd64 config.example.json agents.json.example operaagent.json.example
+          tar -czvf eros-hitbot-darwin-amd64.tar.gz eros-hitbot-darwin-amd64 config.example.json agents.json.example operaagent.json.example
+          tar -czvf eros-hitbot-darwin-arm64.tar.gz eros-hitbot-darwin-arm64 config.example.json agents.json.example operaagent.json.example
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            eros-hitbot-windows-amd64.zip
+            eros-hitbot-linux-amd64.tar.gz
+            eros-hitbot-darwin-amd64.tar.gz
+            eros-hitbot-darwin-arm64.tar.gz
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
