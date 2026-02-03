@@ -11,8 +11,9 @@ const (
 	MsgPagesFound   = "pages_found"
 	MsgCancel       = "cancel"
 	MsgDeadline     = "deadline"
-	MsgVisitErr     = "visit_err"
-	MsgProgress     = "progress"
+	MsgVisitErr        = "visit_err"
+	MsgVisitErrSummary = "visit_err_summary"
+	MsgProgress        = "progress"
 	MsgSummary      = "summary"
 	MsgSummaryLine  = "summary_line"
 	MsgSummaryRT    = "summary_rt"
@@ -32,8 +33,9 @@ var tr = map[string]string{
 	MsgPagesFound:   "%d sayfa bulundu: %v",
 	MsgCancel:       "İptal sinyali alındı, kapatılıyor...",
 	MsgDeadline:     "Test süresi doldu.",
-	MsgVisitErr:     "Ziyaret hatası [%s]: %v",
-	MsgProgress:     "[%d] Toplam: %d | OK: %d | Hata: %d | Ort. RT: %.0f ms",
+	MsgVisitErr:        "Ziyaret hatası [%s]: %v",
+	MsgVisitErrSummary: "%d ziyaret hatası (%s)",
+	MsgProgress:        "[%d] Toplam: %d | OK: %d | Hata: %d | Ort. RT: %.0f ms",
 	MsgSummary:      "--- Özet ---",
 	MsgSummaryLine:  "Toplam istek: %d | Başarılı: %d | Hatalı: %d",
 	MsgSummaryRT:    "Ort. yanıt: %.0f ms | Min: %d ms | Max: %d ms",
@@ -53,8 +55,9 @@ var en = map[string]string{
 	MsgPagesFound:   "%d pages found: %v",
 	MsgCancel:       "Cancel signal received, shutting down...",
 	MsgDeadline:     "Test duration expired.",
-	MsgVisitErr:     "Visit error [%s]: %v",
-	MsgProgress:     "[%d] Total: %d | OK: %d | Fail: %d | Avg RT: %.0f ms",
+	MsgVisitErr:        "Visit error [%s]: %v",
+	MsgVisitErrSummary: "%d visit errors (%s)",
+	MsgProgress:        "[%d] Total: %d | OK: %d | Fail: %d | Avg RT: %.0f ms",
 	MsgSummary:      "--- Summary ---",
 	MsgSummaryLine:  "Total requests: %d | Success: %d | Failed: %d",
 	MsgSummaryRT:    "Avg response: %.0f ms | Min: %d ms | Max: %d ms",

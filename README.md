@@ -2,7 +2,7 @@
 
 [![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](https://golang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.0-red)](https://github.com/eros1sh/eros-hitbot/releases)
+[![Version](https://img.shields.io/badge/version-2.1.0-red)](https://github.com/eros1sh/eros-hitbot/releases)
 
 **Parasitic SEO traffic simulation tool** — Simulate organic search traffic, boost search engine rankings, and verify analytics (GA4/GTM) through realistic, keyword-driven web visits.
 
@@ -15,6 +15,7 @@
 ## Table of Contents
 
 - [Overview](#overview)
+- [What's New in 2.1.0](#whats-new-in-210)
 - [What's New in 2.0](#whats-new-in-20)
 - [Features](#features)
 - [Installation](#installation)
@@ -38,6 +39,30 @@ Eros Hit Bot is an open-source **parasitic SEO** tool that generates simulated o
 2. **Realistic fingerprinting** — Each visit uses unique user agents, screen sizes, timezones, and canvas/WebGL fingerprints to avoid detection.
 3. **Analytics integration** — GA4/GTM events (page views, scrolls, clicks) are triggered so your analytics reflect the traffic.
 4. **Parallel execution** — Multiple browser contexts run concurrently for higher throughput.
+
+---
+
+## What's New in 2.1.0
+
+### UI/UX Improvements
+- **Tailwind CSS redesign** — Modern, cleaner interface with improved visual hierarchy and responsive grid layouts
+- **Public proxy integration** — Public proxy settings moved into the main Proxy Settings section for better organization
+- **Live proxy metric** — New metric card showing real-time count of active public proxies (purple theme)
+- **Loading states** — "Fetch & Test Proxies" button now shows a spinning animation during proxy testing with real-time status polling
+- **GitHub link** — Repository link added to the header with version badge (v2.1.0)
+
+### Bug Fixes & Code Quality
+- **Fixed deprecated `rand.Seed()`** — Migrated to `math/rand/v2` and `crypto/rand` for Go 1.22+ compatibility
+- **Fixed race condition in crawler** — Added mutex protection for `startTime` map in request/response handlers
+- **Fixed race condition in LivePool** — `GetNext()` now uses single lock for thread-safe proxy rotation
+- **Fixed nil pointer dereference** — Added null checks for visitor in simulator's public proxy mode
+- **Improved error handling** — All chromedp operations now properly handle errors (non-critical errors are logged but don't break flow)
+- **Fixed memory leak** — Reporter log channel now properly closes; added `Close()` method to prevent goroutine leaks
+- **Graceful shutdown** — HTTP server now handles SIGINT/SIGTERM with 5-second timeout for clean shutdown
+
+### Technical Changes
+- **Go 1.22+ required** — Uses `math/rand/v2` package with `IntN()` instead of deprecated `Intn()`
+- **Improved proxy status API** — `/api/proxy/status` now returns `checking` flag for UI polling
 
 ---
 
@@ -88,17 +113,39 @@ Eros Hit Bot is an open-source **parasitic SEO** tool that generates simulated o
 ### Option 1: Download Pre-built Binary (Recommended)
 
 1. Go to [Releases](https://github.com/eros1sh/eros-hitbot/releases)
-2. Download **Windows** build: `eros-hitbot-windows-amd64.zip`
-3. Extract the zip and run `eros-hitbot-windows-amd64.exe`
+2. Download the appropriate build for your platform:
+
+| Platform | File | Notes |
+|----------|------|-------|
+| Windows (64-bit) | `eros-hitbot-windows-amd64.zip` | Includes custom icon |
+| macOS (Intel) | `eros-hitbot-darwin-amd64.zip` | For Intel Macs |
+| macOS (Apple Silicon) | `eros-hitbot-darwin-arm64.zip` | For M1/M2/M3 Macs |
+| Linux (64-bit) | `eros-hitbot-linux-amd64.tar.gz` | For x86_64 systems |
+| Linux (ARM64) | `eros-hitbot-linux-arm64.tar.gz` | For ARM64/aarch64 systems |
+
+3. Extract and run:
+
+**Windows:**
+```bash
+# Extract zip and double-click eros-hitbot-windows-amd64.exe
+```
+
+**macOS/Linux:**
+```bash
+# Extract and make executable
+unzip eros-hitbot-darwin-amd64.zip  # or tar -xzf for Linux
+chmod +x eros-hitbot-*
+./eros-hitbot-darwin-amd64  # or linux-amd64
+```
 
 ### Option 2: Build from Source
 
-**Requirements:** Go 1.21+, Chrome/Chromium (for headless mode)
+**Requirements:** Go 1.22+, Chrome/Chromium (for headless mode)
 
 ```bash
 git clone https://github.com/eros1sh/eros-hitbot.git
 cd eros-hitbot
-go build -o eroshit.exe ./cmd/eroshit
+go build -o eroshit ./cmd/eroshit  # Add .exe on Windows
 ```
 
 ---
@@ -207,15 +254,19 @@ Change the web server port (default 8754):
 
 ## Releases
 
-Pre-built **Windows** executable is available in the [Releases](https://github.com/eros1sh/eros-hitbot/releases) section.
+Pre-built binaries for **Windows**, **macOS**, and **Linux** are available in the [Releases](https://github.com/eros1sh/eros-hitbot/releases) section.
 
-To create a new release: push a version tag (e.g. `v1.0.0`). GitHub Actions will build the Windows binary and attach `eros-hitbot-windows-amd64.zip`.
+To create a new release: push a version tag (e.g. `v2.1.0`). GitHub Actions will automatically build binaries for all platforms.
 
-| Platform | File |
-|----------|------|
-| Windows (amd64) | `eros-hitbot-windows-amd64.zip` |
+| Platform | Architecture | File |
+|----------|--------------|------|
+| Windows | x64 (amd64) | `eros-hitbot-windows-amd64.zip` |
+| macOS | Intel (amd64) | `eros-hitbot-darwin-amd64.zip` |
+| macOS | Apple Silicon (arm64) | `eros-hitbot-darwin-arm64.zip` |
+| Linux | x64 (amd64) | `eros-hitbot-linux-amd64.tar.gz` |
+| Linux | ARM64 (aarch64) | `eros-hitbot-linux-arm64.tar.gz` |
 
-Download, extract, and run `eros-hitbot-windows-amd64.exe`. Ensure Chrome/Chromium is installed for headless browsing.
+**Note:** The Windows build includes a custom application icon. Ensure Chrome/Chromium is installed for headless browsing on all platforms.
 
 ---
 

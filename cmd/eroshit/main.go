@@ -63,10 +63,35 @@ func runGUI(port int) {
 	go openBrowser(url)
 	time.Sleep(500 * time.Millisecond)
 
-	if err := http.ListenAndServe(addr, srv.Routes()); err != nil {
+	// HTTP Server with graceful shutdown
+	httpServer := &http.Server{
+		Addr:    addr,
+		Handler: srv.Routes(),
+	}
+
+	// Graceful shutdown için sinyal dinle
+	go func() {
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+		<-sigChan
+
+		fmt.Println("\n🛑 Sunucu kapatılıyor...")
+		
+		// 5 saniye timeout ile graceful shutdown
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		
+		if err := httpServer.Shutdown(ctx); err != nil {
+			fmt.Fprintf(os.Stderr, "Shutdown hatası: %v\n", err)
+		}
+	}()
+
+	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		fmt.Fprintf(os.Stderr, "Sunucu hatası: %v\n", err)
 		os.Exit(1)
 	}
+	
+	fmt.Println("✅ Sunucu başarıyla kapatıldı.")
 }
 
 func promptLang() string {
@@ -171,7 +196,7 @@ func runCLI() {
 	}
 
 	agentLoader := useragent.LoadFromDirs([]string{".", ".."})
-	sim, err := simulator.New(cfg, agentLoader, nil)
+	sim, err := simulator.New(cfg, agentLoader, nil, nil)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Hata: %v\n", err)
 		os.Exit(1)

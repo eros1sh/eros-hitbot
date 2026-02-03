@@ -44,6 +44,7 @@ type Reporter struct {
 	logChan   chan string
 	domain    string
 	locale    string // "tr" veya "en"
+	closed    bool   // kanal kapatıldı mı
 }
 
 func New(outputDir, format string, domain string) *Reporter {
@@ -61,6 +62,7 @@ func NewWithLocale(outputDir, format string, domain, locale string) *Reporter {
 		logChan:   make(chan string, 100),
 		domain:    domain,
 		locale:    locale,
+		closed:    false,
 	}
 	r.metrics.StatusCodes = make(map[int]int)
 	r.metrics.StartTime = time.Now()
@@ -94,9 +96,16 @@ func (r *Reporter) Record(h HitRecord) {
 
 func (r *Reporter) Log(msg string) {
 	fmt.Println(msg)
+	r.mu.RLock()
+	closed := r.closed
+	r.mu.RUnlock()
+	if closed {
+		return
+	}
 	select {
 	case r.logChan <- msg:
 	default:
+		// Kanal doluysa mesajı atla (blocking önleme)
 	}
 }
 
@@ -110,6 +119,16 @@ func (r *Reporter) Finalize() {
 	r.mu.Lock()
 	r.metrics.EndTime = time.Now()
 	r.mu.Unlock()
+}
+
+// Close log kanalını kapatır ve kaynakları temizler
+func (r *Reporter) Close() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if !r.closed {
+		r.closed = true
+		close(r.logChan)
+	}
 }
 
 func (r *Reporter) Export() error {

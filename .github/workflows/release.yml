@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Release tag (örn. v1.0.0). Elle çalıştırırken zorunlu.'
+        description: 'Release tag (e.g. v2.1.0). Required for manual trigger.'
         required: true
-        default: 'v1.0.0'
+        default: 'v2.1.0'
 
 permissions:
   contents: write
@@ -25,33 +25,140 @@ jobs:
       - name: Check build path
         run: |
           if [ ! -d ./cmd/eroshit ]; then
-            echo "::error::cmd/eroshit bulunamadı. Bu klasörü repoya ekleyip push edin: git add cmd/eroshit && git commit -m 'Add cmd/eroshit' && git push"
+            echo "::error::cmd/eroshit not found. Add this folder and push: git add cmd/eroshit && git commit -m 'Add cmd/eroshit' && git push"
             exit 1
           fi
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.22'
 
       - name: Run tests
         run: go test ./...
 
-      - name: Build (Windows)
+      # Windows build with icon
+      - name: Install Windows resource compiler
+        run: |
+          go install github.com/tc-hib/go-winres@latest
+
+      - name: Generate Windows resources (icon)
+        run: |
+          cd cmd/eroshit
+          cat > winres.json << 'EOF'
+          {
+            "RT_GROUP_ICON": {
+              "APP": {
+                "0000": ["../../internal/server/static/logo.png"]
+              }
+            },
+            "RT_MANIFEST": {
+              "#1": {
+                "0409": {
+                  "identity": {
+                    "name": "ErosHitBot",
+                    "version": "2.1.0.0"
+                  },
+                  "description": "Eros Hit Bot - Web Traffic Simulation Tool",
+                  "minimum-os": "win7",
+                  "execution-level": "asInvoker",
+                  "dpi-awareness": "system",
+                  "ui-access": false
+                }
+              }
+            },
+            "RT_VERSION": {
+              "#1": {
+                "0000": {
+                  "fixed": {
+                    "file_version": "2.1.0.0",
+                    "product_version": "2.1.0.0"
+                  },
+                  "info": {
+                    "0409": {
+                      "CompanyName": "eros1sh",
+                      "FileDescription": "Eros Hit Bot",
+                      "FileVersion": "2.1.0",
+                      "InternalName": "eroshit",
+                      "LegalCopyright": "MIT License",
+                      "OriginalFilename": "eroshit.exe",
+                      "ProductName": "Eros Hit Bot",
+                      "ProductVersion": "2.1.0"
+                    }
+                  }
+                }
+              }
+            }
+          }
+          EOF
+          go-winres make
+
+      - name: Build (Windows amd64)
         env:
           CGO_ENABLED: 0
+          GOOS: windows
+          GOARCH: amd64
         run: |
-          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o eros-hitbot-windows-amd64.exe ./cmd/eroshit
+          go build -ldflags="-s -w" -o eros-hitbot-windows-amd64.exe ./cmd/eroshit
 
-      - name: Create archive
+      # macOS builds
+      - name: Build (macOS amd64)
+        env:
+          CGO_ENABLED: 0
+          GOOS: darwin
+          GOARCH: amd64
         run: |
+          go build -ldflags="-s -w" -o eros-hitbot-darwin-amd64 ./cmd/eroshit
+
+      - name: Build (macOS arm64 - Apple Silicon)
+        env:
+          CGO_ENABLED: 0
+          GOOS: darwin
+          GOARCH: arm64
+        run: |
+          go build -ldflags="-s -w" -o eros-hitbot-darwin-arm64 ./cmd/eroshit
+
+      # Linux builds
+      - name: Build (Linux amd64)
+        env:
+          CGO_ENABLED: 0
+          GOOS: linux
+          GOARCH: amd64
+        run: |
+          go build -ldflags="-s -w" -o eros-hitbot-linux-amd64 ./cmd/eroshit
+
+      - name: Build (Linux arm64)
+        env:
+          CGO_ENABLED: 0
+          GOOS: linux
+          GOARCH: arm64
+        run: |
+          go build -ldflags="-s -w" -o eros-hitbot-linux-arm64 ./cmd/eroshit
+
+      # Create archives
+      - name: Create archives
+        run: |
+          # Windows
           zip eros-hitbot-windows-amd64.zip eros-hitbot-windows-amd64.exe config.example.json agents.json.example operaagent.json.example
+          
+          # macOS
+          zip eros-hitbot-darwin-amd64.zip eros-hitbot-darwin-amd64 config.example.json agents.json.example operaagent.json.example
+          zip eros-hitbot-darwin-arm64.zip eros-hitbot-darwin-arm64 config.example.json agents.json.example operaagent.json.example
+          
+          # Linux
+          tar -czvf eros-hitbot-linux-amd64.tar.gz eros-hitbot-linux-amd64 config.example.json agents.json.example operaagent.json.example
+          tar -czvf eros-hitbot-linux-arm64.tar.gz eros-hitbot-linux-arm64 config.example.json agents.json.example operaagent.json.example
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
-          files: eros-hitbot-windows-amd64.zip
+          files: |
+            eros-hitbot-windows-amd64.zip
+            eros-hitbot-darwin-amd64.zip
+            eros-hitbot-darwin-arm64.zip
+            eros-hitbot-linux-amd64.tar.gz
+            eros-hitbot-linux-arm64.tar.gz
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

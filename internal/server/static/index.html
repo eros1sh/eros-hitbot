@@ -8,397 +8,297 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --bg: #0a0a0b;
-      --bg-card: #111113;
-      --bg-input: #18181b;
-      --border: #27272a;
-      --text: #fafafa;
-      --text-muted: #71717a;
-      --accent: #dc2626;
-      --accent-hover: #ef4444;
-      --success: #22c55e;
-      --error: #ef4444;
-      --radius: 12px;
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            bg: '#0a0a0b',
+            'bg-card': '#111113',
+            'bg-input': '#18181b',
+            border: '#27272a',
+            accent: '#dc2626',
+            'accent-hover': '#ef4444',
+            success: '#22c55e',
+            error: '#ef4444',
+          },
+          fontFamily: {
+            sans: ['Outfit', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          animation: {
+            'pulse-slow': 'pulse 2s infinite',
+          }
+        }
+      }
     }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
+  </script>
+  <style>
     body {
-      font-family: 'Outfit', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      line-height: 1.6;
       background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(220,38,38,0.08), transparent);
     }
-
-    .container { max-width: 900px; margin: 0 auto; padding: 2rem; }
-
-    header {
-      display: flex;
-      align-items: center;
-      gap: 1.5rem;
-      margin-bottom: 2.5rem;
-      padding-bottom: 1.5rem;
-      border-bottom: 1px solid var(--border);
+    .log-area::-webkit-scrollbar { width: 6px; }
+    .log-area::-webkit-scrollbar-track { background: #18181b; border-radius: 3px; }
+    .log-area::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
+    .log-area::-webkit-scrollbar-thumb:hover { background: #52525b; }
+    
+    @keyframes fadeIn { 
+      from { opacity: 0; transform: scale(0.95); } 
+      to { opacity: 1; transform: scale(1); } 
     }
-
-    .logo {
-      width: 64px;
-      height: 64px;
-      border-radius: var(--radius);
-      object-fit: cover;
-      border: 1px solid var(--border);
-    }
-
-    .brand h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; }
-    .brand p { color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem; }
-
-    .card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
-    }
-
-    .card h2 {
-      font-size: 1rem;
-      font-weight: 600;
-      margin-bottom: 1rem;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .form-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 1rem;
-    }
-
-    .field { display: flex; flex-direction: column; gap: 0.5rem; }
-    .field label { font-size: 0.85rem; font-weight: 500; color: var(--text-muted); }
-
-    .field input, .field select {
-      background: var(--bg-input);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0.75rem 1rem;
-      color: var(--text);
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.9rem;
-      transition: border-color 0.2s;
-    }
-
-    .field input:focus, .field select:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
-
-    .field input::placeholder { color: var(--text-muted); opacity: 0.7; }
-
-    .field-check { justify-content: center; }
-    .field-full { grid-column: 1 / -1; }
-    .field-full textarea {
-      background: var(--bg-input);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0.75rem 1rem;
-      color: var(--text);
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.9rem;
-      width: 100%;
-      box-sizing: border-box;
-    }
-    .checkbox-label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem; color: var(--text-muted); }
-    .checkbox-label input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); }
-
-    .actions { display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap; }
-    .lang-switch { margin-left: auto; }
-    .lang-switch .btn-lang {
-      padding: 0.4rem 0.8rem;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      background: var(--bg-input);
-      border: 1px solid var(--border);
-      color: var(--text-muted);
-      cursor: pointer;
-      margin-left: 0.25rem;
-    }
-    .lang-switch .btn-lang:hover, .lang-switch .btn-lang.active {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
-    .btn {
-      padding: 0.75rem 1.5rem;
-      border-radius: 8px;
-      font-family: 'Outfit', sans-serif;
-      font-weight: 600;
-      font-size: 0.95rem;
-      cursor: pointer;
-      border: none;
-      transition: all 0.2s;
-    }
-
-    .btn-primary { background: var(--accent); color: white; }
-    .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
-    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-
-    .btn-secondary {
-      background: var(--bg-input);
-      color: var(--text);
-      border: 1px solid var(--border);
-    }
-    .btn-secondary:hover { background: var(--border); }
-    .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    .btn-lang-select {
-      padding: 1rem 2rem;
-      font-size: 1.1rem;
-      min-width: 140px;
-      border-radius: var(--radius);
-      margin: 0.5rem;
-    }
-
-    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; }
-    .metric { background: var(--bg-input); border-radius: 8px; padding: 1rem; text-align: center; }
-    .metric-value { font-family: 'JetBrains Mono', monospace; font-size: 1.5rem; font-weight: 600; color: var(--accent); }
-    .metric-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
-
-    .log-area {
-      background: #080809;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1rem;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.8rem;
-      height: 280px;
-      overflow-y: auto;
-      color: var(--text-muted);
-      line-height: 1.7;
-    }
-    .log-area .log-line { white-space: pre-wrap; word-break: break-all; }
-
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.35rem 0.75rem;
-      border-radius: 999px;
-      font-size: 0.8rem;
-      font-weight: 500;
-      margin-left: 1rem;
-    }
-    .status-badge.running { background: rgba(34, 197, 94, 0.15); color: var(--success); }
-    .status-badge.stopped { background: rgba(113, 113, 122, 0.2); color: var(--text-muted); }
-    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pulse 2s infinite; }
-    .status-badge.stopped .status-dot { animation: none; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-
-    /* Language selection modal */
-    .lang-modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.85);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-      backdrop-filter: blur(8px);
-    }
-
-    .lang-modal {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 2.5rem;
-      text-align: center;
-      max-width: 420px;
-      animation: fadeIn 0.3s ease;
-    }
-
-    @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-
-    .lang-modal h2 {
-      font-size: 1.5rem;
-      margin-bottom: 0.5rem;
-    }
-
-    .lang-modal p {
-      color: var(--text-muted);
-      margin-bottom: 1.5rem;
-      font-size: 0.95rem;
-    }
-
-    .lang-modal .logo-modal {
-      width: 80px;
-      height: 80px;
-      border-radius: var(--radius);
-      margin-bottom: 1.5rem;
-      object-fit: cover;
-      border: 1px solid var(--border);
-    }
-
-    .lang-buttons { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; }
-
-    .main-app { display: none; }
-    .main-app.visible { display: block; }
+    .animate-fadeIn { animation: fadeIn 0.3s ease; }
   </style>
 </head>
-<body>
+<body class="bg-bg text-white min-h-screen font-sans leading-relaxed">
   <!-- Language selection modal -->
-  <div class="lang-modal-overlay" id="langModal">
-    <div class="lang-modal">
-      <img src="/logo.png" alt="Eros - Hit Botu" class="logo-modal">
-      <h2 id="langModalTitle">Dil Seçin / Select Language</h2>
-      <p id="langModalSub">Uygulama dilini seçin / Choose application language</p>
-      <div class="lang-buttons">
-        <button class="btn btn-primary btn-lang-select" id="btnLangTR">Türkçe</button>
-        <button class="btn btn-secondary btn-lang-select" id="btnLangEN">English</button>
+  <div class="fixed inset-0 bg-black/85 flex items-center justify-center z-50 backdrop-blur-sm" id="langModal">
+    <div class="bg-bg-card border border-border rounded-xl p-8 text-center max-w-md animate-fadeIn">
+      <img src="/logo.png" alt="Eros - Hit Botu" class="w-20 h-20 rounded-xl mx-auto mb-6 border border-border object-cover">
+      <h2 class="text-2xl font-bold mb-2" id="langModalTitle">Dil Seçin / Select Language</h2>
+      <p class="text-zinc-400 mb-6 text-sm" id="langModalSub">Uygulama dilini seçin / Choose application language</p>
+      <div class="flex justify-center gap-4 flex-wrap">
+        <button class="px-8 py-3 bg-accent hover:bg-accent-hover text-white font-semibold rounded-xl transition-all duration-200 hover:-translate-y-0.5" id="btnLangTR">Türkçe</button>
+        <button class="px-8 py-3 bg-bg-input hover:bg-border text-white font-semibold rounded-xl border border-border transition-all duration-200" id="btnLangEN">English</button>
       </div>
     </div>
   </div>
 
-  <div class="main-app" id="mainApp">
-    <div class="container">
-      <header>
-        <img src="/logo.png" alt="Eros - Hit Botu" class="logo">
-        <div class="brand">
-          <h1>Eros - Hit Botu <span class="status-badge stopped" id="statusBadge"><span class="status-dot"></span> <span id="statusText">—</span></span></h1>
-          <p id="brandSubtitle">—</p>
+  <div class="hidden" id="mainApp">
+    <div class="max-w-4xl mx-auto px-6 py-8">
+      <!-- GitHub Link Bar -->
+      <div class="flex items-center justify-between mb-4 text-sm">
+        <a href="https://github.com/eros1sh/eros-hitbot" target="_blank" rel="noopener noreferrer"
+           class="inline-flex items-center gap-2 text-zinc-400 hover:text-white transition-colors group">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+          <span class="group-hover:underline">eros1sh/eros-hitbot</span>
+        </a>
+        <span class="text-zinc-600 text-xs">v2.1.0</span>
+      </div>
+      
+      <!-- Header -->
+      <header class="flex items-center gap-5 mb-8 pb-6 border-b border-border">
+        <img src="/logo.png" alt="Eros - Hit Botu" class="w-16 h-16 rounded-xl border border-border object-cover shadow-lg">
+        <div class="flex-1">
+          <div class="flex items-center gap-3 flex-wrap">
+            <h1 class="text-2xl font-bold tracking-tight" id="brandTitle">Eros - Hit Botu</h1>
+            <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-zinc-800/50 text-zinc-400" id="statusBadge">
+              <span class="w-1.5 h-1.5 rounded-full bg-current" id="statusDot"></span>
+              <span id="statusText">—</span>
+            </span>
+          </div>
+          <p class="text-zinc-400 text-sm mt-1" id="brandSubtitle">—</p>
         </div>
       </header>
 
-      <div class="card">
-        <h2 id="cardParams">—</h2>
-        <div class="form-grid">
-          <div class="field">
-            <label for="domain" id="labelDomain">—</label>
-            <input type="text" id="domain" placeholder="example.com" autocomplete="off">
+      <!-- Test Parameters Card -->
+      <div class="bg-bg-card border border-border rounded-xl p-6 mb-5 shadow-lg">
+        <h2 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-5" id="cardParams">—</h2>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Domain -->
+          <div class="space-y-2">
+            <label for="domain" class="block text-sm font-medium text-zinc-400" id="labelDomain">—</label>
+            <input type="text" id="domain" placeholder="example.com" autocomplete="off"
+              class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
           </div>
-          <div class="field">
-            <label for="gtagId" id="labelGtag">—</label>
-            <input type="text" id="gtagId" placeholder="G-XXXXXXXXXXX" autocomplete="off">
+          
+          <!-- GTAG -->
+          <div class="space-y-2">
+            <label for="gtagId" class="block text-sm font-medium text-zinc-400" id="labelGtag">—</label>
+            <input type="text" id="gtagId" placeholder="G-XXXXXXXXXXX" autocomplete="off"
+              class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
           </div>
-          <div class="field">
-            <label for="maxPages" id="labelMaxPages">—</label>
-            <input type="number" id="maxPages" placeholder="5" min="1" max="100" value="5">
+          
+          <!-- Max Pages -->
+          <div class="space-y-2">
+            <label for="maxPages" class="block text-sm font-medium text-zinc-400" id="labelMaxPages">—</label>
+            <input type="number" id="maxPages" placeholder="5" min="1" max="100" value="5"
+              class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
           </div>
-          <div class="field">
-            <label for="duration" id="labelDuration">—</label>
-            <input type="number" id="duration" placeholder="60" min="1" value="60">
+          
+          <!-- Duration -->
+          <div class="space-y-2">
+            <label for="duration" class="block text-sm font-medium text-zinc-400" id="labelDuration">—</label>
+            <input type="number" id="duration" placeholder="60" min="1" value="60"
+              class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
           </div>
-          <div class="field">
-            <label for="hpm" id="labelHpm">—</label>
-            <input type="number" id="hpm" placeholder="35" min="1" max="120" value="35">
+          
+          <!-- HPM -->
+          <div class="space-y-2">
+            <label for="hpm" class="block text-sm font-medium text-zinc-400" id="labelHpm">—</label>
+            <input type="number" id="hpm" placeholder="35" min="1" max="120" value="35"
+              class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
           </div>
-          <div class="field">
-            <label for="maxConcurrent" id="labelMaxConcurrent">—</label>
-            <input type="number" id="maxConcurrent" placeholder="10" min="1" max="50" value="10" title="Paralel tarayıcı sayısı">
+          
+          <!-- Max Concurrent -->
+          <div class="space-y-2">
+            <label for="maxConcurrent" class="block text-sm font-medium text-zinc-400" id="labelMaxConcurrent">—</label>
+            <input type="number" id="maxConcurrent" placeholder="10" min="1" max="50" value="10" title="Paralel tarayıcı sayısı"
+              class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
           </div>
-          <div class="field">
-            <label for="outputDir" id="labelOutputDir">—</label>
-            <input type="text" id="outputDir" placeholder="./reports" autocomplete="off">
+          
+          <!-- Output Dir -->
+          <div class="space-y-2">
+            <label for="outputDir" class="block text-sm font-medium text-zinc-400" id="labelOutputDir">—</label>
+            <input type="text" id="outputDir" placeholder="./reports" autocomplete="off"
+              class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
           </div>
-          <div class="field">
-            <label for="exportFormat" id="labelExportFormat">—</label>
-            <select id="exportFormat">
+          
+          <!-- Export Format -->
+          <div class="space-y-2">
+            <label for="exportFormat" class="block text-sm font-medium text-zinc-400" id="labelExportFormat">—</label>
+            <select id="exportFormat"
+              class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors cursor-pointer">
               <option value="both" id="optExportBoth">CSV + JSON + HTML</option>
               <option value="csv" id="optExportCsv">CSV</option>
               <option value="json" id="optExportJson">JSON</option>
               <option value="html" id="optExportHtml">HTML</option>
             </select>
           </div>
-          <div class="field">
-            <label for="scrollStrategy" id="labelScrollStrategy">—</label>
-            <select id="scrollStrategy">
+          
+          <!-- Scroll Strategy -->
+          <div class="space-y-2">
+            <label for="scrollStrategy" class="block text-sm font-medium text-zinc-400" id="labelScrollStrategy">—</label>
+            <select id="scrollStrategy"
+              class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors cursor-pointer">
               <option value="gradual" id="optScrollGradual">Normal (Kademeli)</option>
               <option value="fast" id="optScrollFast">Hızlı</option>
               <option value="reader" id="optScrollReader">Okuyucu (Yavaş)</option>
             </select>
           </div>
-          <div class="field field-full">
-            <label for="keywords" id="labelKeywords">—</label>
-            <textarea id="keywords" rows="3" placeholder="target keyword, long tail keyword, brand name" style="resize:vertical;min-height:60px"></textarea>
+          
+          <!-- Keywords - Full Width -->
+          <div class="space-y-2 sm:col-span-2 lg:col-span-3">
+            <label for="keywords" class="block text-sm font-medium text-zinc-400" id="labelKeywords">—</label>
+            <textarea id="keywords" rows="3" placeholder="target keyword, long tail keyword, brand name"
+              class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600 resize-y min-h-[70px]"></textarea>
           </div>
-          <div class="field field-check">
-            <label class="checkbox-label">
-              <input type="checkbox" id="canvasFingerprint">
-              <span id="labelCanvasFp">—</span>
-            </label>
+          
+          <!-- Checkboxes Row -->
+          <div class="flex items-center gap-2">
+            <input type="checkbox" id="canvasFingerprint" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer">
+            <label for="canvasFingerprint" class="text-sm text-zinc-400 cursor-pointer" id="labelCanvasFp">—</label>
           </div>
-          <div class="field field-check">
-            <label class="checkbox-label">
-              <input type="checkbox" id="sendScrollEvent">
-              <span id="labelScrollEvent">—</span>
-            </label>
+          
+          <div class="flex items-center gap-2">
+            <input type="checkbox" id="sendScrollEvent" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer">
+            <label for="sendScrollEvent" class="text-sm text-zinc-400 cursor-pointer" id="labelScrollEvent">—</label>
           </div>
-          <div class="field field-check">
-            <label class="checkbox-label">
-              <input type="checkbox" id="useSitemap">
-              <span id="labelUseSitemap">—</span>
-            </label>
+          
+          <div class="flex items-center gap-2">
+            <input type="checkbox" id="useSitemap" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer">
+            <label for="useSitemap" class="text-sm text-zinc-400 cursor-pointer" id="labelUseSitemap">—</label>
           </div>
-          <div class="field">
-            <label for="sitemapHomepageWeight" id="labelSitemapHomepageWeight">—</label>
-            <input type="number" id="sitemapHomepageWeight" placeholder="60" min="0" max="100" value="60" title="Anasayfaya gidecek istek yüzdesi">
-          </div>
-          <div class="field">
-            <label for="proxyHost" id="labelProxyHost">—</label>
-            <input type="text" id="proxyHost" placeholder="proxy.example.com" autocomplete="off">
-          </div>
-          <div class="field">
-            <label for="proxyPort" id="labelProxyPort">—</label>
-            <input type="number" id="proxyPort" placeholder="3120" min="1" max="65535" autocomplete="off">
-          </div>
-          <div class="field">
-            <label for="proxyUser" id="labelProxyUser">—</label>
-            <input type="text" id="proxyUser" placeholder="" autocomplete="off">
-          </div>
-          <div class="field">
-            <label for="proxyPass" id="labelProxyPass">—</label>
-            <input type="password" id="proxyPass" placeholder="" autocomplete="off">
+          
+          <!-- Sitemap Weight -->
+          <div class="space-y-2">
+            <label for="sitemapHomepageWeight" class="block text-sm font-medium text-zinc-400" id="labelSitemapHomepageWeight">—</label>
+            <input type="number" id="sitemapHomepageWeight" placeholder="60" min="0" max="100" value="60" title="Anasayfaya gidecek istek yüzdesi"
+              class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
           </div>
         </div>
-        <div class="actions">
-          <button class="btn btn-primary" id="btnStart">—</button>
-          <button class="btn btn-secondary" id="btnStop" disabled>—</button>
-          <div class="lang-switch">
-            <button class="btn-lang active" id="btnLangTRSmall" data-lang="tr">TR</button>
-            <button class="btn-lang" id="btnLangENSmall" data-lang="en">EN</button>
+        
+        <!-- Proxy Settings - Collapsible Section -->
+        <div class="mt-6 pt-5 border-t border-border/50">
+          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4" id="proxySettingsTitle">Proxy Ayarları</h3>
+          
+          <!-- Private Proxy -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+            <div class="space-y-2">
+              <label for="proxyHost" class="block text-sm font-medium text-zinc-400" id="labelProxyHost">—</label>
+              <input type="text" id="proxyHost" placeholder="proxy.example.com" autocomplete="off"
+                class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+            </div>
+            
+            <div class="space-y-2">
+              <label for="proxyPort" class="block text-sm font-medium text-zinc-400" id="labelProxyPort">—</label>
+              <input type="number" id="proxyPort" placeholder="3120" min="1" max="65535" autocomplete="off"
+                class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+            </div>
+            
+            <div class="space-y-2">
+              <label for="proxyUser" class="block text-sm font-medium text-zinc-400" id="labelProxyUser">—</label>
+              <input type="text" id="proxyUser" placeholder="" autocomplete="off"
+                class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+            </div>
+            
+            <div class="space-y-2">
+              <label for="proxyPass" class="block text-sm font-medium text-zinc-400" id="labelProxyPass">—</label>
+              <input type="password" id="proxyPass" placeholder="" autocomplete="off"
+                class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+            </div>
+          </div>
+          
+          <!-- Public Proxy Section -->
+          <div class="bg-bg-input/50 rounded-lg p-4 border border-border/50">
+            <div class="flex flex-wrap items-center gap-4 mb-3">
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="usePublicProxy" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer">
+                <label for="usePublicProxy" class="text-sm font-medium text-zinc-300 cursor-pointer" id="labelUsePublicProxy">—</label>
+              </div>
+              
+              <div class="flex items-center gap-2">
+                <label for="checkerWorkers" class="text-sm text-zinc-400" id="labelCheckerWorkers">—</label>
+                <input type="number" id="checkerWorkers" placeholder="25" min="1" max="100" value="25" title="Aynı anda test edilen proxy sayısı"
+                  class="w-16 bg-bg-input border border-border rounded-lg px-2 py-1.5 text-white font-mono text-sm focus:outline-none focus:border-accent transition-colors text-center">
+              </div>
+              
+              <button class="px-4 py-1.5 bg-bg-input hover:bg-border text-white font-medium rounded-lg border border-border transition-all duration-200 text-sm" id="btnProxyFetch" type="button">—</button>
+            </div>
+            
+            <p class="text-xs text-zinc-500" id="publicProxyDesc">Açık proxy listelerinden otomatik çeker ve test eder</p>
+          </div>
+        </div>
+        
+        <!-- Actions -->
+        <div class="flex items-center gap-3 mt-6 pt-5 border-t border-border/50 flex-wrap">
+          <button class="px-6 py-2.5 bg-accent hover:bg-accent-hover text-white font-semibold rounded-lg transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg shadow-accent/20" id="btnStart">—</button>
+          <button class="px-6 py-2.5 bg-bg-input hover:bg-border text-white font-semibold rounded-lg border border-border transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed" id="btnStop" disabled>—</button>
+          
+          <div class="ml-auto flex gap-1">
+            <button class="px-3 py-1.5 text-xs font-medium rounded-md bg-bg-input border border-border text-zinc-400 hover:border-accent hover:text-accent transition-colors" id="btnLangTRSmall" data-lang="tr">TR</button>
+            <button class="px-3 py-1.5 text-xs font-medium rounded-md bg-bg-input border border-border text-zinc-400 hover:border-accent hover:text-accent transition-colors" id="btnLangENSmall" data-lang="en">EN</button>
           </div>
         </div>
       </div>
 
-      <div class="card">
-        <h2 id="cardMetrics">—</h2>
-        <div class="metrics">
-          <div class="metric">
-            <div class="metric-value" id="metricTotal">0</div>
-            <div class="metric-label" id="metricLabelTotal">—</div>
+      <!-- Metrics Card -->
+      <div class="bg-bg-card border border-border rounded-xl p-6 mb-5 shadow-lg">
+        <h2 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-5" id="cardMetrics">—</h2>
+        
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
+          <div class="bg-bg-input rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold font-mono text-accent" id="metricTotal">0</div>
+            <div class="text-xs text-zinc-500 mt-1" id="metricLabelTotal">—</div>
           </div>
-          <div class="metric">
-            <div class="metric-value" id="metricSuccess">0</div>
-            <div class="metric-label" id="metricLabelSuccess">—</div>
+          
+          <div class="bg-bg-input rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold font-mono text-success" id="metricSuccess">0</div>
+            <div class="text-xs text-zinc-500 mt-1" id="metricLabelSuccess">—</div>
           </div>
-          <div class="metric">
-            <div class="metric-value" id="metricFailed">0</div>
-            <div class="metric-label" id="metricLabelFailed">—</div>
+          
+          <div class="bg-bg-input rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold font-mono text-error" id="metricFailed">0</div>
+            <div class="text-xs text-zinc-500 mt-1" id="metricLabelFailed">—</div>
           </div>
-          <div class="metric">
-            <div class="metric-value" id="metricAvg">0 ms</div>
-            <div class="metric-label" id="metricLabelAvg">—</div>
+          
+          <div class="bg-bg-input rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold font-mono text-blue-400" id="metricAvg">0 ms</div>
+            <div class="text-xs text-zinc-500 mt-1" id="metricLabelAvg">—</div>
+          </div>
+          
+          <div class="bg-bg-input rounded-lg p-4 text-center border border-purple-500/30">
+            <div class="text-2xl font-bold font-mono text-purple-400" id="metricLiveProxy">0</div>
+            <div class="text-xs text-zinc-500 mt-1" id="metricLabelLiveProxy">—</div>
           </div>
         </div>
       </div>
 
-      <div class="card">
-        <h2 id="cardLog">—</h2>
-        <div class="log-area" id="logArea"></div>
+      <!-- Log Card -->
+      <div class="bg-bg-card border border-border rounded-xl p-6 shadow-lg">
+        <h2 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4" id="cardLog">—</h2>
+        <div class="log-area bg-[#080809] border border-border rounded-lg p-4 font-mono text-xs h-72 overflow-y-auto text-zinc-500 leading-relaxed" id="logArea"></div>
       </div>
     </div>
   </div>
@@ -408,30 +308,49 @@
 
     const t = {
       tr: {
+        titleApp: 'Eros - Hit Botu',
+        altLogo: 'Eros - Hit Botu',
+        brandTitle: 'Eros - Hit Botu',
         langSelectTitle: 'Dil Seçin / Select Language',
         langSelectSub: 'Uygulama dilini seçin / Choose application language',
+        btnLangTR: 'Türkçe',
+        btnLangEN: 'English',
         brandSubtitle: 'Web Trafik Simülasyon Botu',
         statusWaiting: 'Beklemede',
         statusRunning: 'Çalışıyor',
+        statusIdle: '—',
         cardParams: 'Test Parametreleri',
         labelDomain: 'Hedef Domain',
-        labelMaxPages: 'Max Sayfa',
-        labelDuration: 'Süre (dakika)',
-        labelHpm: 'İstek / Dakika',
-        labelProxyHost: 'Proxy Host',
-        labelProxyPort: 'Proxy Port',
-        labelProxyUser: 'Proxy Kullanıcı',
-        labelProxyPass: 'Proxy Şifre',
+        placeholderDomain: 'example.com',
         labelGtag: 'GA4 / GTAG Kodu',
+        placeholderGtag: 'G-XXXXXXXXXXX',
+        labelMaxPages: 'Max Sayfa',
+        placeholderMaxPages: '5',
+        labelDuration: 'Süre (dakika)',
+        placeholderDuration: '60',
+        labelHpm: 'İstek / Dakika',
+        placeholderHpm: '35',
         labelMaxConcurrent: 'Paralel Tarayıcı',
+        placeholderMaxConcurrent: '10',
+        titleMaxConcurrent: 'Paralel tarayıcı sayısı',
         labelOutputDir: 'Rapor Klasörü',
+        placeholderOutputDir: './reports',
         labelExportFormat: 'Rapor Formatı',
         labelScrollStrategy: 'Scroll Stili',
         labelKeywords: 'Anahtar Kelimeler (virgül veya satır ile ayırın)',
+        placeholderKeywords: 'anahtar kelime, uzun kuyruk, marka adı',
         labelCanvasFp: 'Canvas Fingerprint',
         labelScrollEvent: 'Scroll Event (GA4)',
-        labelUseSitemap: 'Sitemap.xml kullan (varsa sitemap URL\'lerine de istek)',
+        labelUseSitemap: 'Sitemap.xml kullan',
         labelSitemapHomepageWeight: 'Anasayfa ağırlığı (%)',
+        placeholderSitemapWeight: '60',
+        titleSitemapWeight: 'Anasayfaya gidecek istek yüzdesi',
+        labelProxyHost: 'Proxy Host',
+        placeholderProxyHost: 'proxy.example.com',
+        labelProxyPort: 'Proxy Port',
+        placeholderProxyPort: '3120',
+        labelProxyUser: 'Proxy Kullanıcı',
+        labelProxyPass: 'Proxy Şifre',
         btnStart: 'Başlat',
         btnStop: 'Durdur',
         cardMetrics: 'Canlı Metrikler',
@@ -439,6 +358,9 @@
         metricSuccess: 'Başarılı',
         metricFailed: 'Hatalı',
         metricAvg: 'Ort. Yanıt',
+        metricLiveProxy: 'Canlı Proxy',
+        proxySettingsTitle: 'Proxy Ayarları',
+        publicProxyDesc: 'Açık proxy listelerinden otomatik çeker ve test eder',
         cardLog: 'Log',
         errorDomain: 'Hata: Hedef domain girin.',
         errorStart: 'Başlatma hatası',
@@ -452,33 +374,64 @@
         optExportHtml: 'HTML',
         optScrollGradual: 'Normal (Kademeli)',
         optScrollFast: 'Hızlı',
-        optScrollReader: 'Okuyucu (Yavaş)'
+        optScrollReader: 'Okuyucu (Yavaş)',
+        cardPublicProxy: 'Public Proxy (Dahili Bulucu)',
+        labelUsePublicProxy: 'Public proxy kullan',
+        labelCheckerWorkers: 'Checker Workers',
+        placeholderCheckerWorkers: '25',
+        titleCheckerWorkers: 'Aynı anda test edilen proxy sayısı',
+        btnProxyFetch: 'Proxy Çek & Test Et',
+        unitMs: ' ms',
+        logProxyFetchStarted: 'Proxy çekme başlatıldı.',
+        logProxyFetchError: 'Proxy çekme hatası: ',
+        logGitHubAdded: 'Havuza {{n}} proxy eklendi.',
+        proxyChecking: 'Test ediliyor...',
+        proxyCheckComplete: 'Proxy testi tamamlandı.',
       },
       en: {
-        langSelectTitle: 'Dil Seçin / Select Language',
-        langSelectSub: 'Uygulama dilini seçin / Choose application language',
+        titleApp: 'Eros - Hit Bot',
+        altLogo: 'Eros - Hit Bot',
+        brandTitle: 'Eros - Hit Bot',
+        langSelectTitle: 'Select Language',
+        langSelectSub: 'Choose application language',
+        btnLangTR: 'Türkçe',
+        btnLangEN: 'English',
         brandSubtitle: 'Web Traffic Simulation Bot',
         statusWaiting: 'Waiting',
         statusRunning: 'Running',
+        statusIdle: '—',
         cardParams: 'Test Parameters',
         labelDomain: 'Target Domain',
-        labelMaxPages: 'Max Pages',
-        labelDuration: 'Duration (minutes)',
-        labelHpm: 'Requests / Minute',
-        labelProxyHost: 'Proxy Host',
-        labelProxyPort: 'Proxy Port',
-        labelProxyUser: 'Proxy User',
-        labelProxyPass: 'Proxy Password',
+        placeholderDomain: 'example.com',
         labelGtag: 'GA4 / GTAG Code',
+        placeholderGtag: 'G-XXXXXXXXXXX',
+        labelMaxPages: 'Max Pages',
+        placeholderMaxPages: '5',
+        labelDuration: 'Duration (minutes)',
+        placeholderDuration: '60',
+        labelHpm: 'Requests / Minute',
+        placeholderHpm: '35',
         labelMaxConcurrent: 'Parallel Browsers',
+        placeholderMaxConcurrent: '10',
+        titleMaxConcurrent: 'Number of parallel browsers',
         labelOutputDir: 'Report Folder',
+        placeholderOutputDir: './reports',
         labelExportFormat: 'Report Format',
         labelScrollStrategy: 'Scroll Style',
         labelKeywords: 'Keywords (comma or newline separated)',
+        placeholderKeywords: 'keyword, long tail, brand name',
         labelCanvasFp: 'Canvas Fingerprint',
         labelScrollEvent: 'Scroll Event (GA4)',
-        labelUseSitemap: 'Use sitemap.xml (request sitemap URLs if found)',
+        labelUseSitemap: 'Use sitemap.xml',
         labelSitemapHomepageWeight: 'Homepage weight (%)',
+        placeholderSitemapWeight: '60',
+        titleSitemapWeight: 'Percentage of requests to homepage',
+        labelProxyHost: 'Proxy Host',
+        placeholderProxyHost: 'proxy.example.com',
+        labelProxyPort: 'Proxy Port',
+        placeholderProxyPort: '3120',
+        labelProxyUser: 'Proxy User',
+        labelProxyPass: 'Proxy Password',
         btnStart: 'Start',
         btnStop: 'Stop',
         cardMetrics: 'Live Metrics',
@@ -486,6 +439,9 @@
         metricSuccess: 'Successful',
         metricFailed: 'Failed',
         metricAvg: 'Avg Response',
+        metricLiveProxy: 'Live Proxy',
+        proxySettingsTitle: 'Proxy Settings',
+        publicProxyDesc: 'Automatically fetches and tests from public proxy lists',
         cardLog: 'Log',
         errorDomain: 'Error: Enter target domain.',
         errorStart: 'Start error',
@@ -499,25 +455,40 @@
         optExportHtml: 'HTML',
         optScrollGradual: 'Normal (Gradual)',
         optScrollFast: 'Fast',
-        optScrollReader: 'Reader (Slow)'
+        optScrollReader: 'Reader (Slow)',
+        cardPublicProxy: 'Public Proxy (Built-in Finder)',
+        labelUsePublicProxy: 'Use public proxy',
+        labelCheckerWorkers: 'Checker Workers',
+        placeholderCheckerWorkers: '25',
+        titleCheckerWorkers: 'Number of proxies tested at once',
+        btnProxyFetch: 'Fetch & Test Proxies',
+        unitMs: ' ms',
+        logProxyFetchStarted: 'Proxy fetch started.',
+        logProxyFetchError: 'Proxy fetch error: ',
+        logGitHubAdded: 'Added {{n}} proxies.',
+        proxyChecking: 'Testing...',
+        proxyCheckComplete: 'Proxy test completed.',
       }
     };
 
     let lang = localStorage.getItem(LANG_KEY) || '';
     let statusInterval = null;
     let eventSource = null;
+    let wsConn = null;
 
     const langModal = document.getElementById('langModal');
     const mainApp = document.getElementById('mainApp');
 
     function showLangModal() {
       langModal.style.display = 'flex';
-      mainApp.classList.remove('visible');
+      mainApp.classList.add('hidden');
+      mainApp.classList.remove('block');
     }
 
     function hideLangModal() {
       langModal.style.display = 'none';
-      mainApp.classList.add('visible');
+      mainApp.classList.remove('hidden');
+      mainApp.classList.add('block');
     }
 
     function setLang(newLang) {
@@ -525,6 +496,7 @@
       localStorage.setItem(LANG_KEY, lang);
       applyTranslations();
       hideLangModal();
+      updateLangButtons();
     }
 
     function applyTranslations() {
@@ -557,32 +529,64 @@
       document.getElementById('metricLabelSuccess').textContent = L.metricSuccess;
       document.getElementById('metricLabelFailed').textContent = L.metricFailed;
       document.getElementById('metricLabelAvg').textContent = L.metricAvg;
+      document.getElementById('metricLabelLiveProxy').textContent = L.metricLiveProxy;
       document.getElementById('cardLog').textContent = L.cardLog;
-      document.querySelector('title').textContent = lang === 'en' ? 'Eros - Hit Bot' : 'Eros - Hit Botu';
+      document.getElementById('proxySettingsTitle').textContent = L.proxySettingsTitle;
+      document.getElementById('labelUsePublicProxy').textContent = L.labelUsePublicProxy;
+      document.getElementById('labelCheckerWorkers').textContent = L.labelCheckerWorkers;
+      document.getElementById('btnProxyFetch').textContent = L.btnProxyFetch;
+      document.getElementById('publicProxyDesc').textContent = L.publicProxyDesc;
+      document.querySelector('title').textContent = L.titleApp;
       document.documentElement.lang = lang === 'en' ? 'en' : 'tr';
-      if (L.optExportBoth) {
-        document.getElementById('optExportBoth').textContent = L.optExportBoth;
-        document.getElementById('optExportCsv').textContent = L.optExportCsv;
-        document.getElementById('optExportJson').textContent = L.optExportJson;
-        document.getElementById('optExportHtml').textContent = L.optExportHtml;
-        document.getElementById('optScrollGradual').textContent = L.optScrollGradual;
-        document.getElementById('optScrollFast').textContent = L.optScrollFast;
-        document.getElementById('optScrollReader').textContent = L.optScrollReader;
-      }
+      document.getElementById('langModalTitle').textContent = L.langSelectTitle;
+      document.getElementById('langModalSub').textContent = L.langSelectSub;
+      document.getElementById('btnLangTR').textContent = L.btnLangTR;
+      document.getElementById('btnLangEN').textContent = L.btnLangEN;
+      document.getElementById('brandTitle').textContent = L.brandTitle;
+      document.querySelectorAll('img[alt]').forEach(img => img.alt = L.altLogo || '');
+      
+      // Placeholders
+      document.getElementById('domain').placeholder = L.placeholderDomain || '';
+      document.getElementById('gtagId').placeholder = L.placeholderGtag || '';
+      document.getElementById('maxPages').placeholder = L.placeholderMaxPages || '';
+      document.getElementById('duration').placeholder = L.placeholderDuration || '';
+      document.getElementById('hpm').placeholder = L.placeholderHpm || '';
+      document.getElementById('maxConcurrent').placeholder = L.placeholderMaxConcurrent || '';
+      document.getElementById('maxConcurrent').title = L.titleMaxConcurrent || '';
+      document.getElementById('outputDir').placeholder = L.placeholderOutputDir || '';
+      document.getElementById('keywords').placeholder = L.placeholderKeywords || '';
+      document.getElementById('sitemapHomepageWeight').placeholder = L.placeholderSitemapWeight || '';
+      document.getElementById('sitemapHomepageWeight').title = L.titleSitemapWeight || '';
+      document.getElementById('proxyHost').placeholder = L.placeholderProxyHost || '';
+      document.getElementById('proxyPort').placeholder = L.placeholderProxyPort || '';
+      document.getElementById('checkerWorkers').placeholder = L.placeholderCheckerWorkers || '';
+      document.getElementById('checkerWorkers').title = L.titleCheckerWorkers || '';
+      
+      // Select options
+      document.getElementById('optExportBoth').textContent = L.optExportBoth;
+      document.getElementById('optExportCsv').textContent = L.optExportCsv;
+      document.getElementById('optExportJson').textContent = L.optExportJson;
+      document.getElementById('optExportHtml').textContent = L.optExportHtml;
+      document.getElementById('optScrollGradual').textContent = L.optScrollGradual;
+      document.getElementById('optScrollFast').textContent = L.optScrollFast;
+      document.getElementById('optScrollReader').textContent = L.optScrollReader;
     }
 
     document.getElementById('btnLangTR').addEventListener('click', () => setLang('tr'));
     document.getElementById('btnLangEN').addEventListener('click', () => setLang('en'));
-
-    document.getElementById('btnLangTRSmall').addEventListener('click', () => { setLang('tr'); updateLangButtons(); });
-    document.getElementById('btnLangENSmall').addEventListener('click', () => { setLang('en'); updateLangButtons(); });
+    document.getElementById('btnLangTRSmall').addEventListener('click', () => setLang('tr'));
+    document.getElementById('btnLangENSmall').addEventListener('click', () => setLang('en'));
 
     function updateLangButtons() {
-      document.getElementById('btnLangTRSmall').classList.toggle('active', lang === 'tr');
-      document.getElementById('btnLangENSmall').classList.toggle('active', lang === 'en');
+      const trBtn = document.getElementById('btnLangTRSmall');
+      const enBtn = document.getElementById('btnLangENSmall');
+      trBtn.classList.toggle('border-accent', lang === 'tr');
+      trBtn.classList.toggle('text-accent', lang === 'tr');
+      enBtn.classList.toggle('border-accent', lang === 'en');
+      enBtn.classList.toggle('text-accent', lang === 'en');
     }
 
-    // URL'den ?lang= parametresi (program başlarken açılan sayfa)
+    // URL'den ?lang= parametresi
     const urlParams = new URLSearchParams(window.location.search);
     const urlLang = urlParams.get('lang');
     if (urlLang === 'tr' || urlLang === 'en') {
@@ -592,6 +596,12 @@
       hideLangModal();
       updateLangButtons();
     } else if (!lang) {
+      const detected = (navigator.language && navigator.language.startsWith('en')) ? 'en' : 'tr';
+      const L0 = t[detected];
+      document.getElementById('langModalTitle').textContent = L0.langSelectTitle;
+      document.getElementById('langModalSub').textContent = L0.langSelectSub;
+      document.getElementById('btnLangTR').textContent = L0.btnLangTR;
+      document.getElementById('btnLangEN').textContent = L0.btnLangEN;
       showLangModal();
     } else {
       applyTranslations();
@@ -599,6 +609,7 @@
       updateLangButtons();
     }
 
+    // Form elements
     const domain = document.getElementById('domain');
     const maxPages = document.getElementById('maxPages');
     const duration = document.getElementById('duration');
@@ -617,12 +628,15 @@
     const sendScrollEvent = document.getElementById('sendScrollEvent');
     const useSitemap = document.getElementById('useSitemap');
     const sitemapHomepageWeight = document.getElementById('sitemapHomepageWeight');
+    const usePublicProxy = document.getElementById('usePublicProxy');
+    const checkerWorkers = document.getElementById('checkerWorkers');
 
     const STORAGE_KEY = 'eroshit_form';
     const btnStart = document.getElementById('btnStart');
     const btnStop = document.getElementById('btnStop');
     const statusBadge = document.getElementById('statusBadge');
     const statusText = document.getElementById('statusText');
+    const statusDot = document.getElementById('statusDot');
     const logArea = document.getElementById('logArea');
     const metricTotal = document.getElementById('metricTotal');
     const metricSuccess = document.getElementById('metricSuccess');
@@ -642,7 +656,7 @@
         if (s) {
           const c = JSON.parse(s);
           domain.value = c.domain ?? 'example.com';
-          gtagId.value = c.gtag_id ?? 'G-5WW6MDM5EN';
+          gtagId.value = c.gtag_id ?? '';
           maxPages.value = c.max_pages ?? 5;
           duration.value = c.duration_minutes ?? 60;
           hpm.value = c.hits_per_minute ?? 35;
@@ -659,6 +673,8 @@
           proxyPort.value = c.proxy_port ?? '';
           proxyUser.value = c.proxy_user ?? '';
           proxyPass.value = c.proxy_pass ?? '';
+          usePublicProxy.checked = !!c.use_public_proxy;
+          checkerWorkers.value = (c.checker_workers ?? 25).toString();
           return true;
         }
       } catch (_) {}
@@ -685,7 +701,9 @@
           proxy_host: proxyHost.value.trim(),
           proxy_port: parseInt(proxyPort.value) || 0,
           proxy_user: proxyUser.value.trim(),
-          proxy_pass: proxyPass.value
+          proxy_pass: proxyPass.value,
+          use_public_proxy: usePublicProxy.checked,
+          checker_workers: parseInt(checkerWorkers.value) || 25
         }));
       } catch (_) {}
     }
@@ -696,7 +714,7 @@
         const r = await fetch('/api/config');
         const c = await r.json();
         domain.value = c.target_domain || 'example.com';
-        gtagId.value = c.gtag_id || 'G-5WW6MDM5EN';
+        gtagId.value = c.gtag_id || '';
         maxPages.value = c.max_pages || 5;
         duration.value = c.duration_minutes || 60;
         hpm.value = c.hits_per_minute || 35;
@@ -713,10 +731,11 @@
         proxyPort.value = c.proxy_port || '';
         proxyUser.value = c.proxy_user || '';
         proxyPass.value = c.proxy_pass || '';
+        usePublicProxy.checked = !!c.use_public_proxy;
+        checkerWorkers.value = String(c.checker_workers ?? 25);
       } catch (e) {
         log(L().logConfigError + ': ' + e.message);
         domain.value = 'example.com';
-        gtagId.value = 'G-5WW6MDM5EN';
       }
     }
 
@@ -743,14 +762,16 @@
           proxy_host: proxyHost.value.trim(),
           proxy_port: parseInt(proxyPort.value) || 0,
           proxy_user: proxyUser.value.trim(),
-          proxy_pass: proxyPass.value
+          proxy_pass: proxyPass.value,
+          use_public_proxy: usePublicProxy.checked,
+          checker_workers: parseInt(checkerWorkers.value) || 25
         })
       });
     }
 
     function log(msg) {
       const line = document.createElement('div');
-      line.className = 'log-line';
+      line.className = 'whitespace-pre-wrap break-all';
       const locale = lang === 'en' ? 'en-US' : 'tr-TR';
       line.textContent = '[' + new Date().toLocaleTimeString(locale) + '] ' + msg;
       logArea.appendChild(line);
@@ -774,7 +795,8 @@
         if (!r.ok) throw new Error(data.error || data.message || text || r.statusText);
         setRunning(true);
         log(L().logStarted);
-        connectLogs();
+        connectWebSocket();
+        if (!wsConn) connectLogs();
         pollStatus();
       } catch (e) {
         log(L().errorStart + ': ' + (e.message || e));
@@ -786,6 +808,7 @@
         await fetch('/api/stop', { method: 'POST' });
         setRunning(false);
         if (eventSource) eventSource.close();
+        if (wsConn) { try { wsConn.close(); } catch (_) {} wsConn = null; }
         if (statusInterval) clearInterval(statusInterval);
         log(L().logStopped);
       } catch (e) {
@@ -796,7 +819,15 @@
     function setRunning(running) {
       btnStart.disabled = running;
       btnStop.disabled = !running;
-      statusBadge.className = 'status-badge ' + (running ? 'running' : 'stopped');
+      if (running) {
+        statusBadge.classList.remove('bg-zinc-800/50', 'text-zinc-400');
+        statusBadge.classList.add('bg-success/15', 'text-success');
+        statusDot.classList.add('animate-pulse');
+      } else {
+        statusBadge.classList.add('bg-zinc-800/50', 'text-zinc-400');
+        statusBadge.classList.remove('bg-success/15', 'text-success');
+        statusDot.classList.remove('animate-pulse');
+      }
       statusText.textContent = running ? L().statusRunning : L().statusWaiting;
     }
 
@@ -814,36 +845,148 @@
       eventSource.onerror = () => { eventSource.close(); };
     }
 
+    function applyStatusData(s) {
+      metricTotal.textContent = s.total_hits ?? 0;
+      metricSuccess.textContent = s.success_hits ?? 0;
+      metricFailed.textContent = s.failed_hits ?? 0;
+      metricAvg.textContent = (s.avg_response_ms ?? 0).toFixed(0) + (L().unitMs || ' ms');
+      
+      // Proxy status güncelle
+      if (s.proxy_status) {
+        document.getElementById('metricLiveProxy').textContent = s.proxy_status.live_count ?? 0;
+      }
+      
+      if (!s.running && btnStart.disabled) setRunning(false);
+    }
+
+    function connectWebSocket() {
+      if (wsConn) return;
+      const wsUrl = (window.location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + window.location.host + '/api/ws';
+      try {
+        const ws = new WebSocket(wsUrl);
+        ws.onopen = function() {
+          wsConn = ws;
+          if (statusInterval) { clearInterval(statusInterval); statusInterval = null; }
+          if (eventSource) { eventSource.close(); eventSource = null; }
+        };
+        ws.onmessage = function(ev) {
+          try {
+            const msg = JSON.parse(ev.data);
+            if (msg.type === 'status' && msg.data) applyStatusData(msg.data);
+            else if (msg.type === 'log') log(typeof msg.data === 'string' ? msg.data : (msg.data != null ? String(msg.data) : ''));
+          } catch (_) {}
+        };
+        ws.onclose = ws.onerror = function() {
+          wsConn = null;
+          if (btnStart.disabled) connectLogs();
+          if (btnStart.disabled && !statusInterval) pollStatus();
+        };
+      } catch (_) {}
+    }
+
     async function pollStatus() {
       const update = async () => {
         try {
           const r = await fetch('/api/status');
           const s = await r.json();
-          metricTotal.textContent = s.total_hits ?? 0;
-          metricSuccess.textContent = s.success_hits ?? 0;
-          metricFailed.textContent = s.failed_hits ?? 0;
-          metricAvg.textContent = (s.avg_response_ms ?? 0).toFixed(0) + ' ms';
-          if (!s.running && btnStart.disabled) setRunning(false);
+          applyStatusData(s);
         } catch (_) {}
       };
-      statusInterval = setInterval(update, 2000);
-      await update();
+      if (!wsConn) {
+        statusInterval = setInterval(update, 2000);
+        await update();
+      }
+    }
+
+    let proxyPollInterval = null;
+    
+    async function proxyFetch() {
+      const btn = document.getElementById('btnProxyFetch');
+      const originalText = btn.textContent;
+      const workers = parseInt(checkerWorkers.value) || 25;
+      
+      // Loading state başlat
+      btn.disabled = true;
+      btn.innerHTML = '<span class="inline-flex items-center gap-2"><svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span>' + (L().proxyChecking || 'Çekiliyor...') + '</span></span>';
+      
+      try {
+        const body = { checker_workers: workers };
+        const r = await fetch('/api/proxy/fetch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        let data = {};
+        try { data = await r.json(); } catch (_) {}
+        if (!r.ok) {
+          log(L().logProxyFetchError + (data.error || data.message || r.statusText || ''));
+          btn.disabled = false;
+          btn.textContent = originalText;
+          return;
+        }
+        if (data.added !== undefined) {
+          log((L().logGitHubAdded || '').replace('{{n}}', data.added));
+          btn.disabled = false;
+          btn.textContent = originalText;
+          return;
+        }
+        if (data.status === 'error') {
+          log(L().logProxyFetchError + (data.error || ''));
+          btn.disabled = false;
+          btn.textContent = originalText;
+          return;
+        }
+        log(L().logProxyFetchStarted);
+        
+        // Proxy status polling başlat
+        startProxyStatusPolling(btn, originalText);
+        
+      } catch (e) {
+        log(L().logProxyFetchError + (e.message || e));
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+    }
+    
+    function startProxyStatusPolling(btn, originalText) {
+      if (proxyPollInterval) clearInterval(proxyPollInterval);
+      
+      proxyPollInterval = setInterval(async () => {
+        try {
+          const r = await fetch('/api/proxy/status');
+          const status = await r.json();
+          
+          // Live proxy sayısını güncelle
+          document.getElementById('metricLiveProxy').textContent = status.live_count ?? 0;
+          
+          // Checking bittiğinde butonu eski haline döndür
+          if (!status.checking) {
+            clearInterval(proxyPollInterval);
+            proxyPollInterval = null;
+            btn.disabled = false;
+            btn.textContent = originalText;
+            log((L().proxyCheckComplete || 'Proxy testi tamamlandı.') + ' Canlı: ' + (status.live_count ?? 0));
+          }
+        } catch (_) {}
+      }, 1500);
     }
 
     btnStart.addEventListener('click', start);
     btnStop.addEventListener('click', stop);
+    document.getElementById('btnProxyFetch').addEventListener('click', proxyFetch);
 
-    [domain, gtagId, maxPages, duration, hpm, maxConcurrent, outputDir, exportFormat, scrollStrategy, keywords, proxyHost, proxyPort, proxyUser, proxyPass].forEach(function(el) {
+    // Auto-save on change
+    [domain, gtagId, maxPages, duration, hpm, maxConcurrent, outputDir, exportFormat, scrollStrategy, keywords, proxyHost, proxyPort, proxyUser, proxyPass, checkerWorkers].forEach(el => {
       if (el) el.addEventListener('change', saveToStorage);
     });
-    [canvasFingerprint, sendScrollEvent, useSitemap].forEach(function(el) {
-      if (el) el.addEventListener('change', saveToStorage);
-    });
-    [sitemapHomepageWeight].forEach(function(el) {
+    [canvasFingerprint, sendScrollEvent, useSitemap, usePublicProxy, sitemapHomepageWeight].forEach(el => {
       if (el) el.addEventListener('change', saveToStorage);
     });
 
-    loadConfig();
+    loadConfig().then(() => {
+      connectWebSocket();
+      fetch('/api/status').then(r => r.json()).then(applyStatusData).catch(() => {});
+    });
   </script>
 </body>
 </html>

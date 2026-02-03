@@ -91,6 +91,7 @@ func New(domain string, maxPages int, rep *reporter.Reporter, proxyURL string, a
 }
 
 func (cr *Crawler) setupHandlers() {
+	var startTimeMu sync.Mutex
 	startTime := make(map[string]time.Time)
 
 	cr.collector.OnRequest(func(r *colly.Request) {
@@ -107,17 +108,23 @@ func (cr *Crawler) setupHandlers() {
 		for k, v := range headers {
 			r.Headers.Set(k, v)
 		}
+		startTimeMu.Lock()
 		startTime[r.URL.String()] = time.Now()
+		startTimeMu.Unlock()
 	})
 
 	cr.collector.OnResponse(func(r *colly.Response) {
 		u := r.Request.URL.String()
+		startTimeMu.Lock()
 		start, ok := startTime[u]
+		if ok {
+			delete(startTime, u)
+		}
+		startTimeMu.Unlock()
 		if !ok {
 			start = time.Now()
 		}
 		elapsed := time.Since(start).Milliseconds()
-		delete(startTime, u)
 
 		cr.reporter.Record(reporter.HitRecord{
 			Timestamp:    time.Now(),

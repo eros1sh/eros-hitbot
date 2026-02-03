@@ -2,9 +2,10 @@ package session
 
 import (
 	"context"
+	cryptorand "crypto/rand"
 	"encoding/json"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"sync"
 	"time"
 
@@ -223,7 +224,7 @@ func (s *SessionManager) getRandomSessionUnlocked() *Session {
 	for k := range s.sessions {
 		keys = append(keys, k)
 	}
-	return s.sessions[keys[rand.Intn(len(keys))]]
+	return s.sessions[keys[rand.IntN(len(keys))]]
 }
 
 func (s *SessionManager) removeOldestSessionUnlocked() {
@@ -243,10 +244,6 @@ func (s *SessionManager) removeOldestSessionUnlocked() {
 
 func generateSessionID() string {
 	b := make([]byte, 16)
-	rand.Read(b)
+	_, _ = cryptorand.Read(b)
 	return fmt.Sprintf("%x", b)
-}
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
 }

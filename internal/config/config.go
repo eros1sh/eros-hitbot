@@ -36,6 +36,11 @@ type Config struct {
 	UseSitemap            bool          `yaml:"use_sitemap"`
 	SitemapHomepageWeight int           `yaml:"sitemap_homepage_weight"` // 0-100, anasayfa yüzdesi
 	Keywords              []string      `yaml:"keywords"`
+	// Public proxy: listelerden çek, checker ile test et, çalışanlarla vur
+	UsePublicProxy   bool     `yaml:"use_public_proxy"`
+	ProxySourceURLs  []string `yaml:"proxy_source_urls"`  // Boşsa varsayılan listeler
+	GitHubRepos      []string `yaml:"github_repos"`      // GitHub repo URL'leri: tüm .txt indirilir, test yok
+	CheckerWorkers   int     `yaml:"checker_workers"`   // Aynı anda test eden worker sayısı
 	Duration              time.Duration `yaml:"-"`
 	RequestInterval       time.Duration `yaml:"-"`
 }
@@ -119,6 +124,12 @@ func (c *Config) ApplyDefaults() {
 	}
 	if c.SitemapHomepageWeight > 100 {
 		c.SitemapHomepageWeight = 100
+	}
+	if c.CheckerWorkers <= 0 {
+		c.CheckerWorkers = 25
+	}
+	if c.CheckerWorkers > 100 {
+		c.CheckerWorkers = 100
 	}
 	c.TargetDomain = strings.TrimSpace(strings.TrimPrefix(c.TargetDomain, "https://"))
 	c.TargetDomain = strings.TrimPrefix(c.TargetDomain, "http://")

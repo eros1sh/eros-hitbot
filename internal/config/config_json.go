@@ -29,6 +29,10 @@ type ConfigJSON struct {
 	UseSitemap            bool     `json:"useSitemap"`
 	SitemapHomepageWeight int      `json:"sitemapHomepageWeight"`
 	Keywords              []string `json:"keywords"`
+	UsePublicProxy        bool     `json:"usePublicProxy"`
+	ProxySourceURLs       []string `json:"proxySourceURLs"`
+	GitHubRepos           []string `json:"githubRepos"`
+	CheckerWorkers        int      `json:"checkerWorkers"`
 }
 
 // LoadFromJSON config.json'dan yükler; Config'e dönüştürür
@@ -57,6 +61,10 @@ func LoadFromJSON(path string) (*Config, error) {
 		UseSitemap:            j.UseSitemap,
 		SitemapHomepageWeight: j.SitemapHomepageWeight,
 		Keywords:              j.Keywords,
+		UsePublicProxy:        j.UsePublicProxy,
+		ProxySourceURLs:       j.ProxySourceURLs,
+		GitHubRepos:           j.GitHubRepos,
+		CheckerWorkers:        j.CheckerWorkers,
 		ProxyHost:          j.ProxyHost,
 		ProxyPort:          j.ProxyPort,
 		ProxyUser:          j.ProxyUser,

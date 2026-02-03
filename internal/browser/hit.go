@@ -279,22 +279,36 @@ func (h *HitVisitor) VisitURL(ctx context.Context, urlStr string) error {
 	navErr := chromedp.Run(tabCtx, navActions...)
 
 	if navErr == nil && gtagScript != "" {
-		chromedp.Run(tabCtx, chromedp.Evaluate(gtagScript, nil))
-		chromedp.Run(tabCtx, chromedp.Sleep(1500*time.Millisecond))
+		if err := chromedp.Run(tabCtx, chromedp.Evaluate(gtagScript, nil)); err != nil {
+			// gtag script hatası kritik değil, devam et
+			_ = err
+		}
+		if err := chromedp.Run(tabCtx, chromedp.Sleep(1500*time.Millisecond)); err != nil {
+			_ = err
+		}
 	}
 
 	// Stealth scriptleri sayfa yüklendikten sonra tekrar enjekte et (bazı siteler için gerekli)
 	if navErr == nil {
-		_ = stealth.InjectStealthScripts(tabCtx, stealthCfg)
+		if err := stealth.InjectStealthScripts(tabCtx, stealthCfg); err != nil {
+			// Stealth script hatası kritik değil, devam et
+			_ = err
+		}
 	}
 
 	if navErr == nil {
 		// Canvas fingerprint (sayfa yüklendikten sonra)
 		if h.config.CanvasFingerprint {
 			cf := canvas.GenerateFingerprint()
-			_ = cf.InjectCanvasNoise(tabCtx)
-			_ = cf.InjectWebGLFingerprint(tabCtx)
-			_ = cf.InjectAudioFingerprint(tabCtx)
+			if err := cf.InjectCanvasNoise(tabCtx); err != nil {
+				_ = err
+			}
+			if err := cf.InjectWebGLFingerprint(tabCtx); err != nil {
+				_ = err
+			}
+			if err := cf.InjectAudioFingerprint(tabCtx); err != nil {
+				_ = err
+			}
 		}
 
 		// Scroll davranışı
@@ -302,17 +316,21 @@ func (h *HitVisitor) VisitURL(ctx context.Context, urlStr string) error {
 		if strategy == "" {
 			strategy = "gradual"
 		}
-		_ = engagement.HumanScroll(tabCtx, engagement.ScrollBehavior{
+		if err := engagement.HumanScroll(tabCtx, engagement.ScrollBehavior{
 			Strategy:    strategy,
 			ReadSpeed:   200,
-		})
+		}); err != nil {
+			_ = err
+		}
 
 		// Scroll event (GA4)
 		if h.config.SendScrollEvent && h.config.AnalyticsManager != nil {
-			_ = h.config.AnalyticsManager.SendEvent(tabCtx, analytics.Event{
+			if err := h.config.AnalyticsManager.SendEvent(tabCtx, analytics.Event{
 				Type: analytics.EventScroll, Category: "engagement",
 				Action: "scroll", Label: "75%", Value: 75,
-			})
+			}); err != nil {
+				_ = err
+			}
 		}
 
 		// İnsan davranışı (kısa)
@@ -324,12 +342,13 @@ func (h *HitVisitor) VisitURL(ctx context.Context, urlStr string) error {
 			ClickProbability: 0,
 		})
 		var pageLen int
-		_ = chromedp.Evaluate(`document.body ? document.body.innerText.length : 0`, &pageLen).Do(tabCtx)
+		if err := chromedp.Evaluate(`document.body ? document.body.innerText.length : 0`, &pageLen).Do(tabCtx); err != nil {
+			pageLen = 0
+		}
 		hum.SimulatePageVisit(tabCtx, pageLen)
 	}
 
 	elapsed := time.Since(start).Milliseconds()
-	_ = authDone
 
 	if navErr != nil {
 		h.reporter.Record(reporter.HitRecord{
