@@ -1,0 +1,44 @@
+{
+  "RT_GROUP_ICON": {
+    "APP": {
+      "0000": ["../../../internal/server/static/logo.png"]
+    }
+  },
+  "RT_MANIFEST": {
+    "#1": {
+      "0409": {
+        "identity": {
+          "name": "ErosHitBot",
+          "version": "2.1.0.0"
+        },
+        "description": "Eros Hit Bot - Web Traffic Simulation Tool",
+        "minimum-os": "win7",
+        "execution-level": "asInvoker",
+        "dpi-awareness": "system",
+        "ui-access": false
+      }
+    }
+  },
+  "RT_VERSION": {
+    "#1": {
+      "0000": {
+        "fixed": {
+          "file_version": "2.1.0.0",
+          "product_version": "2.1.0.0"
+        },
+        "info": {
+          "0409": {
+            "CompanyName": "eros1sh",
+            "FileDescription": "Eros Hit Bot",
+            "FileVersion": "2.1.0",
+            "InternalName": "eroshit",
+            "LegalCopyright": "MIT License",
+            "OriginalFilename": "eroshit.exe",
+            "ProductName": "Eros Hit Bot",
+            "ProductVersion": "2.1.0"
+          }
+        }
+      }
+    }
+  }
+}
