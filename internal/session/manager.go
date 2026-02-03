@@ -5,7 +5,7 @@ import (
 	cryptorand "crypto/rand"
 	"encoding/json"
 	"fmt"
-	"math/rand/v2"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -14,6 +14,10 @@ import (
 
 	"eroshit/pkg/fingerprint"
 )
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 // Session kullanıcı oturumu
 type Session struct {
@@ -224,7 +228,7 @@ func (s *SessionManager) getRandomSessionUnlocked() *Session {
 	for k := range s.sessions {
 		keys = append(keys, k)
 	}
-	return s.sessions[keys[rand.IntN(len(keys))]]
+	return s.sessions[keys[rand.Intn(len(keys))]]
 }
 
 func (s *SessionManager) removeOldestSessionUnlocked() {

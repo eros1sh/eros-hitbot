@@ -61,7 +61,7 @@ Eros Hit Bot is an open-source **parasitic SEO** tool that generates simulated o
 - **Graceful shutdown** — HTTP server now handles SIGINT/SIGTERM with 5-second timeout for clean shutdown
 
 ### Technical Changes
-- **Go 1.22+ required** — Uses `math/rand/v2` package with `IntN()` instead of deprecated `Intn()`
+- **Go 1.21+ compatible** — Uses standard `math/rand` package for broad compatibility
 - **Improved proxy status API** — `/api/proxy/status` now returns `checking` flag for UI polling
 
 ---
@@ -140,7 +140,7 @@ chmod +x eros-hitbot-*
 
 ### Option 2: Build from Source
 
-**Requirements:** Go 1.22+, Chrome/Chromium (for headless mode)
+**Requirements:** Go 1.21+, Chrome/Chromium (for headless mode)
 
 ```bash
 git clone https://github.com/eros1sh/eros-hitbot.git
