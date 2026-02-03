@@ -2,6 +2,8 @@ package browser
 
 import (
 	"context"
+	"fmt"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -18,6 +20,7 @@ import (
 	"eroshit/pkg/canvas"
 	"eroshit/pkg/engagement"
 	"eroshit/pkg/fingerprint"
+	"eroshit/pkg/mobile"
 	"eroshit/pkg/referrer"
 	"eroshit/pkg/stealth"
 	"eroshit/pkg/useragent"
@@ -37,6 +40,12 @@ type HitVisitorConfig struct {
 	AnalyticsManager  *analytics.Manager
 	Keywords          []string // Arama referrer için anahtar kelimeler
 	VisitTimeout      time.Duration // 0 ise defaultVisitTimeout kullanılır
+	// Cihaz emülasyonu
+	DeviceType        string   // "desktop", "mobile", "tablet", "mixed"
+	DeviceBrands      []string // ["apple", "samsung", "google", "windows", "linux"]
+	// Referrer ayarları
+	ReferrerKeyword   string   // Google arama referrer için kelime
+	ReferrerEnabled   bool     // Referrer simülasyonu aktif mi
 }
 
 // HitVisitor JS çalıştıran, her ziyarette farklı fingerprint, proxy destekli
@@ -73,9 +82,32 @@ func NewHitVisitor(agentProvider interface {
 		chromedp.Flag("disable-sync", true),
 	)
 
+	// SECURITY FIX: Proxy URL'den auth bilgisini ayır
+	// Chrome --proxy-server flag'i auth bilgisi kabul etmiyor
+	// Auth bilgisi fetch.EventAuthRequired ile ayrı olarak işlenmeli
 	if cfg.ProxyURL != "" {
+		proxyServerURL := cfg.ProxyURL
+		
+		// URL'yi parse et ve auth bilgisini çıkar
+		if parsedURL, err := url.Parse(cfg.ProxyURL); err == nil {
+			// Auth bilgisi varsa, URL'den çıkar
+			if parsedURL.User != nil {
+				// Kullanıcı adı ve şifreyi config'e kaydet (zaten varsa override etme)
+				if cfg.ProxyUser == "" {
+					cfg.ProxyUser = parsedURL.User.Username()
+				}
+				if cfg.ProxyPass == "" {
+					if pass, ok := parsedURL.User.Password(); ok {
+						cfg.ProxyPass = pass
+					}
+				}
+				// Auth olmadan proxy URL oluştur
+				proxyServerURL = fmt.Sprintf("%s://%s", parsedURL.Scheme, parsedURL.Host)
+			}
+		}
+		
 		opts = append(opts,
-			chromedp.ProxyServer(cfg.ProxyURL),
+			chromedp.ProxyServer(proxyServerURL),
 			chromedp.Flag("proxy-bypass-list", "<-loopback>"),
 		)
 	}
@@ -103,24 +135,84 @@ var blockTypes = map[network.ResourceType]bool{
 }
 
 func (h *HitVisitor) VisitURL(ctx context.Context, urlStr string) error {
-	ua, _ := h.agentProvider.RandomWithHeaders()
-	if ua == "" {
-		ua = useragent.Random()
+	// Cihaz emülasyonu: DeviceType ve DeviceBrands'e göre cihaz seç
+	var deviceProfile *mobile.DeviceProfile
+	var ua string
+	var isMobile bool
+	
+	if h.config.DeviceType != "" && h.config.DeviceType != "mixed" {
+		// Belirli bir cihaz tipi seçilmiş
+		device := mobile.GetRandomDeviceFiltered(h.config.DeviceType, h.config.DeviceBrands)
+		deviceProfile = &device
+		ua = device.UserAgent
+		isMobile = device.Mobile
+	} else if len(h.config.DeviceBrands) > 0 {
+		// Sadece marka filtresi var
+		device := mobile.GetRandomDeviceFiltered("mixed", h.config.DeviceBrands)
+		deviceProfile = &device
+		ua = device.UserAgent
+		isMobile = device.Mobile
+	} else {
+		// Varsayılan davranış
+		ua, _ = h.agentProvider.RandomWithHeaders()
+		if ua == "" {
+			ua = useragent.Random()
+		}
 	}
-	advFP := fingerprint.GenerateAdvancedFingerprint()
-	advFP.UserAgent = ua
-	fp := fingerprint.FP{
-		Platform:     advFP.Platform,
-		Language:     advFP.Language,
-		Languages:    strings.Join(advFP.Languages, ", "),
-		InnerW:       advFP.ScreenWidth - 22,
-		InnerH:       advFP.ScreenHeight - 100,
-		DevicePixel:  advFP.ScreenPixelRatio,
-		Timezone:     advFP.Timezone,
-		HardwareConc: advFP.HardwareConcurrency,
-		DeviceMem:    int64(advFP.DeviceMemory),
-		Vendor:       advFP.WebGLVendor,
+	
+	var advFP *fingerprint.AdvancedFingerprint
+	var fp fingerprint.FP
+	
+	if deviceProfile != nil {
+		// Cihaz profilinden fingerprint oluştur
+		advFP = &fingerprint.AdvancedFingerprint{
+			UserAgent:           deviceProfile.UserAgent,
+			Platform:            deviceProfile.Platform,
+			ScreenWidth:         deviceProfile.ScreenWidth,
+			ScreenHeight:        deviceProfile.ScreenHeight,
+			ScreenPixelRatio:    deviceProfile.PixelRatio,
+			MaxTouchPoints:      deviceProfile.MaxTouchPoints,
+			Language:            "tr-TR",
+			Languages:           []string{"tr-TR", "tr", "en"},
+			HardwareConcurrency: 8,
+			DeviceMemory:        8,
+			ScreenColorDepth:    24,
+			AvailWidth:          deviceProfile.ScreenWidth,
+			AvailHeight:         deviceProfile.ScreenHeight - 40,
+			Timezone:            "Europe/Istanbul",
+			WebGLVendor:         "Google Inc.",
+			WebGLRenderer:       "ANGLE (Intel, Intel(R) UHD Graphics Direct3D11 vs_5_0 ps_5_0)",
+		}
+		fp = fingerprint.FP{
+			Platform:     advFP.Platform,
+			Language:     advFP.Language,
+			Languages:    strings.Join(advFP.Languages, ", "),
+			InnerW:       advFP.ScreenWidth,
+			InnerH:       advFP.ScreenHeight,
+			DevicePixel:  advFP.ScreenPixelRatio,
+			Timezone:     advFP.Timezone,
+			HardwareConc: advFP.HardwareConcurrency,
+			DeviceMem:    int64(advFP.DeviceMemory),
+			Vendor:       advFP.WebGLVendor,
+		}
+	} else {
+		// Varsayılan fingerprint
+		advFP = fingerprint.GenerateAdvancedFingerprint()
+		advFP.UserAgent = ua
+		fp = fingerprint.FP{
+			Platform:     advFP.Platform,
+			Language:     advFP.Language,
+			Languages:    strings.Join(advFP.Languages, ", "),
+			InnerW:       advFP.ScreenWidth - 22,
+			InnerH:       advFP.ScreenHeight - 100,
+			DevicePixel:  advFP.ScreenPixelRatio,
+			Timezone:     advFP.Timezone,
+			HardwareConc: advFP.HardwareConcurrency,
+			DeviceMem:    int64(advFP.DeviceMemory),
+			Vendor:       advFP.WebGLVendor,
+		}
 	}
+	
 	if fp.InnerW <= 0 {
 		fp.InnerW = 1366
 	}
@@ -158,6 +250,9 @@ func (h *HitVisitor) VisitURL(ctx context.Context, urlStr string) error {
 	if stealthCfg.AvailHeight <= 0 {
 		stealthCfg.AvailHeight = stealthCfg.ScreenHeight - 40
 	}
+	
+	// Mobil cihaz için touch desteği
+	_ = isMobile // Kullanılacak
 
 	browserOpts := []chromedp.ContextOption{
 		chromedp.WithLogf(func(string, ...interface{}) {}),
@@ -251,14 +346,28 @@ func (h *HitVisitor) VisitURL(ctx context.Context, urlStr string) error {
 			return err
 		}),
 		emulation.SetUserAgentOverride(ua),
-		emulation.SetDeviceMetricsOverride(int64(fp.InnerW), int64(fp.InnerH), fp.DevicePixel, false),
+		emulation.SetDeviceMetricsOverride(int64(fp.InnerW), int64(fp.InnerH), fp.DevicePixel, isMobile),
 		emulation.SetTimezoneOverride(fp.Timezone),
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			return network.ClearBrowserCookies().Do(ctx)
 		}),
 	}
-	// Keyword'ler varsa referrer ayarla (arama motoru kaynağı simülasyonu)
-	if len(h.config.Keywords) > 0 {
+	
+	// Mobil cihaz için touch emülasyonu
+	if isMobile && deviceProfile != nil {
+		navActions = append(navActions, chromedp.ActionFunc(func(ctx context.Context) error {
+			return emulation.SetTouchEmulationEnabled(true).WithMaxTouchPoints(int64(deviceProfile.MaxTouchPoints)).Do(ctx)
+		}))
+	}
+	
+	// Referrer ayarla - öncelik: ReferrerKeyword > Keywords
+	var referrerURL string
+	if h.config.ReferrerEnabled && h.config.ReferrerKeyword != "" {
+		// Kullanıcının girdiği kelime ile Google arama referrer'ı oluştur
+		encodedKeyword := url.QueryEscape(h.config.ReferrerKeyword)
+		referrerURL = fmt.Sprintf("https://www.google.com/search?q=%s", encodedKeyword)
+	} else if len(h.config.Keywords) > 0 {
+		// Eski davranış: Keywords listesinden referrer oluştur
 		refCfg := &referrer.ReferrerConfig{
 			GooglePercent: 50, BingPercent: 20, DirectPercent: 30,
 			Keywords: h.config.Keywords,
@@ -266,13 +375,26 @@ func (h *HitVisitor) VisitURL(ctx context.Context, urlStr string) error {
 		refChain := referrer.NewReferrerChain(targetDomain, refCfg)
 		src := refChain.Generate()
 		if src != nil && src.URL != "" && (src.Type == "search" || src.Type == "social") {
-			navActions = append(navActions, chromedp.ActionFunc(func(ctx context.Context) error {
-				return network.SetExtraHTTPHeaders(map[string]interface{}{"Referer": src.URL}).Do(ctx)
-			}))
+			referrerURL = src.URL
 		}
 	}
+	
+	// Referrer'ı page.Navigate ile birlikte ayarla (SetExtraHTTPHeaders yerine)
+	// Bu şekilde sadece ana sayfa navigasyonuna referrer eklenir, alt kaynaklara değil
+	if referrerURL != "" {
+		navActions = append(navActions,
+			chromedp.ActionFunc(func(ctx context.Context) error {
+				// page.Navigate ile referrer parametresi kullan
+				_, _, _, err := page.Navigate(urlStr).WithReferrer(referrerURL).Do(ctx)
+				return err
+			}),
+		)
+	} else {
+		navActions = append(navActions,
+			chromedp.Navigate(urlStr),
+		)
+	}
 	navActions = append(navActions,
-		chromedp.Navigate(urlStr),
 		chromedp.WaitReady("body", chromedp.ByQuery),
 		chromedp.Sleep(1500*time.Millisecond),
 	)

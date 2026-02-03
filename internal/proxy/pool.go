@@ -223,7 +223,8 @@ func (p *ProxyPool) checkProxyHealth(proxy *ProxyConfig) bool {
 			Proxy: http.ProxyURL(proxy.ToURL()),
 		},
 	}
-	resp, err := client.Get("http://www.google.com/robots.txt")
+	// SECURITY FIX: Use HTTPS instead of HTTP for health checks
+	resp, err := client.Get("https://www.google.com/robots.txt")
 	if err != nil {
 		return false
 	}

@@ -123,11 +123,14 @@ func New(cfg *config.Config, agentProvider crawler.AgentProvider, rep *reporter.
 	}
 	rep.LogT(i18n.MsgStarting)
 
+	// SECURITY FIX: Proxy URL'yi doğru şekilde oluştur - auth bilgisi dahil
 	proxyURL := ""
 	if livePool == nil && cfg.ProxyEnabled {
-		proxyURL = cfg.ProxyBaseURL
-		if proxyURL == "" {
+		// Öncelik: ProxyURL (auth dahil), sonra ProxyBaseURL (auth yok)
+		if cfg.ProxyURL != "" {
 			proxyURL = cfg.ProxyURL
+		} else if cfg.ProxyBaseURL != "" {
+			proxyURL = cfg.ProxyBaseURL
 		}
 	}
 
@@ -154,6 +157,11 @@ func New(cfg *config.Config, agentProvider crawler.AgentProvider, rep *reporter.
 			SendScrollEvent:   cfg.SendScrollEvent,
 			AnalyticsManager:  analyticsMgr,
 			Keywords:          cfg.Keywords,
+			// Yeni alanlar
+			DeviceType:        cfg.DeviceType,
+			DeviceBrands:      cfg.DeviceBrands,
+			ReferrerKeyword:   cfg.ReferrerKeyword,
+			ReferrerEnabled:   cfg.ReferrerEnabled,
 		})
 		if errHv != nil {
 			return nil, errHv
@@ -342,6 +350,11 @@ func (s *Simulator) Run(ctx context.Context) error {
 					SendScrollEvent:   s.cfg.SendScrollEvent,
 					AnalyticsManager:  analyticsMgr,
 					Keywords:          s.cfg.Keywords,
+					// Yeni alanlar
+					DeviceType:        s.cfg.DeviceType,
+					DeviceBrands:      s.cfg.DeviceBrands,
+					ReferrerKeyword:   s.cfg.ReferrerKeyword,
+					ReferrerEnabled:   s.cfg.ReferrerEnabled,
 				})
 				if errHv != nil {
 					slot.mu.Unlock()

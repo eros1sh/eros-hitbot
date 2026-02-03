@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -9,6 +10,37 @@ import (
 
 	"gopkg.in/yaml.v3"
 )
+
+// PrivateProxy kullanıcının kendi proxy'si
+type PrivateProxy struct {
+	Host     string `yaml:"host" json:"host"`
+	Port     int    `yaml:"port" json:"port"`
+	User     string `yaml:"user" json:"user"`
+	Pass     string `yaml:"pass" json:"pass"`
+	Protocol string `yaml:"protocol" json:"protocol"` // http, socks5
+}
+
+// ToURL proxy URL'i oluşturur
+func (p *PrivateProxy) ToURL() string {
+	if p.Host == "" || p.Port <= 0 {
+		return ""
+	}
+	protocol := p.Protocol
+	if protocol == "" {
+		protocol = "http"
+	}
+	hostPort := fmt.Sprintf("%s:%d", p.Host, p.Port)
+	if p.User != "" || p.Pass != "" {
+		userInfo := url.UserPassword(p.User, p.Pass)
+		return fmt.Sprintf("%s://%s@%s", protocol, userInfo.String(), hostPort)
+	}
+	return fmt.Sprintf("%s://%s", protocol, hostPort)
+}
+
+// Key benzersiz proxy anahtarı
+func (p *PrivateProxy) Key() string {
+	return fmt.Sprintf("%s:%d", p.Host, p.Port)
+}
 
 // Config uygulama konfigürasyonu
 type Config struct {
@@ -41,6 +73,15 @@ type Config struct {
 	ProxySourceURLs  []string `yaml:"proxy_source_urls"`  // Boşsa varsayılan listeler
 	GitHubRepos      []string `yaml:"github_repos"`      // GitHub repo URL'leri: tüm .txt indirilir, test yok
 	CheckerWorkers   int     `yaml:"checker_workers"`   // Aynı anda test eden worker sayısı
+	// Private proxy listesi (kullanıcının kendi proxy'leri)
+	PrivateProxies   []PrivateProxy `yaml:"private_proxies"`
+	UsePrivateProxy  bool           `yaml:"use_private_proxy"` // Private proxy modu aktif mi
+	// Cihaz emülasyonu ayarları
+	DeviceType         string   `yaml:"device_type"`          // "desktop", "mobile", "tablet", "mixed"
+	DeviceBrands       []string `yaml:"device_brands"`        // ["apple", "samsung", "google", "windows", "linux"]
+	// Referrer ayarları
+	ReferrerKeyword    string   `yaml:"referrer_keyword"`     // Google arama referrer için kelime
+	ReferrerEnabled    bool     `yaml:"referrer_enabled"`     // Referrer simülasyonu aktif mi
 	Duration              time.Duration `yaml:"-"`
 	RequestInterval       time.Duration `yaml:"-"`
 }
@@ -131,6 +172,15 @@ func (c *Config) ApplyDefaults() {
 	if c.CheckerWorkers > 100 {
 		c.CheckerWorkers = 100
 	}
+	// Cihaz tipi varsayılanı
+	if c.DeviceType == "" {
+		c.DeviceType = "mixed"
+	}
+	// Geçerli cihaz tipleri kontrolü
+	validDeviceTypes := map[string]bool{"desktop": true, "mobile": true, "tablet": true, "mixed": true}
+	if !validDeviceTypes[c.DeviceType] {
+		c.DeviceType = "mixed"
+	}
 	c.TargetDomain = strings.TrimSpace(strings.TrimPrefix(c.TargetDomain, "https://"))
 	c.TargetDomain = strings.TrimPrefix(c.TargetDomain, "http://")
 	c.TargetDomain = strings.TrimSuffix(c.TargetDomain, "/")
@@ -149,7 +199,6 @@ func (c *Config) ComputeDerived() {
 		c.ProxyURL = buildProxyURL(c.ProxyHost, c.ProxyPort, c.ProxyUser, c.ProxyPass)
 		c.ProxyEnabled = true
 	}
-	if c.GtagID == "" {
-		c.GtagID = "G-5WW6MDM5EN"
-	}
+	// SECURITY FIX: Removed hardcoded GA ID - user must provide their own
+	// GtagID is now optional and will be empty if not configured
 }

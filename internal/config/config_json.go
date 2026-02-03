@@ -33,6 +33,23 @@ type ConfigJSON struct {
 	ProxySourceURLs       []string `json:"proxySourceURLs"`
 	GitHubRepos           []string `json:"githubRepos"`
 	CheckerWorkers        int      `json:"checkerWorkers"`
+	// Private proxy listesi
+	PrivateProxies        []PrivateProxyJSON `json:"privateProxies"`
+	UsePrivateProxy       bool               `json:"usePrivateProxy"`
+	// Yeni alanlar
+	DeviceType        string   `json:"deviceType"`
+	DeviceBrands      []string `json:"deviceBrands"`
+	ReferrerKeyword   string   `json:"referrerKeyword"`
+	ReferrerEnabled   bool     `json:"referrerEnabled"`
+}
+
+// PrivateProxyJSON JSON formatında private proxy
+type PrivateProxyJSON struct {
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	User     string `json:"user"`
+	Pass     string `json:"pass"`
+	Protocol string `json:"protocol"`
 }
 
 // LoadFromJSON config.json'dan yükler; Config'e dönüştürür
@@ -45,6 +62,20 @@ func LoadFromJSON(path string) (*Config, error) {
 	var j ConfigJSON
 	if err := json.Unmarshal(data, &j); err != nil {
 		return nil, err
+	}
+
+	// Private proxy'leri dönüştür
+	var privateProxies []PrivateProxy
+	for _, pp := range j.PrivateProxies {
+		if pp.Host != "" && pp.Port > 0 {
+			privateProxies = append(privateProxies, PrivateProxy{
+				Host:     pp.Host,
+				Port:     pp.Port,
+				User:     pp.User,
+				Pass:     pp.Pass,
+				Protocol: pp.Protocol,
+			})
+		}
 	}
 
 	cfg := &Config{
@@ -70,6 +101,14 @@ func LoadFromJSON(path string) (*Config, error) {
 		ProxyUser:          j.ProxyUser,
 		ProxyPass:          j.ProxyPass,
 		GtagID:             j.FallbackGAID,
+		// Private proxy alanları
+		PrivateProxies:    privateProxies,
+		UsePrivateProxy:   j.UsePrivateProxy,
+		// Yeni alanlar
+		DeviceType:        j.DeviceType,
+		DeviceBrands:      j.DeviceBrands,
+		ReferrerKeyword:   j.ReferrerKeyword,
+		ReferrerEnabled:   j.ReferrerEnabled,
 	}
 	if cfg.OutputDir == "" {
 		cfg.OutputDir = "./reports"

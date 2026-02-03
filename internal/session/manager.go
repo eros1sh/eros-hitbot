@@ -5,7 +5,7 @@ import (
 	cryptorand "crypto/rand"
 	"encoding/json"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"sync"
 	"time"
 
@@ -15,9 +15,9 @@ import (
 	"eroshit/pkg/fingerprint"
 )
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
+// SECURITY FIX: Removed deprecated rand.Seed() call
+// Go 1.20+ automatically seeds the global random source
+// Using math/rand/v2 for better randomness
 
 // Session kullanıcı oturumu
 type Session struct {
@@ -228,7 +228,8 @@ func (s *SessionManager) getRandomSessionUnlocked() *Session {
 	for k := range s.sessions {
 		keys = append(keys, k)
 	}
-	return s.sessions[keys[rand.Intn(len(keys))]]
+	// SECURITY FIX: Using rand.IntN (rand/v2) instead of deprecated rand.Intn
+	return s.sessions[keys[rand.IntN(len(keys))]]
 }
 
 func (s *SessionManager) removeOldestSessionUnlocked() {

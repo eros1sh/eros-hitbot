@@ -1,8 +1,8 @@
 {
-  "PROXY_HOST": "proxy.example.com",
-  "PROXY_PORT": 3120,
-  "PROXY_USER": "your_proxy_username",
-  "PROXY_PASS": "your_proxy_password",
+  "PROXY_HOST": "",
+  "PROXY_PORT": 0,
+  "PROXY_USER": "",
+  "PROXY_PASS": "",
   "targetDomain": "example.com",
   "fallbackGAID": "G-XXXXXXXXXX",
   "maxPages": 5,
@@ -14,5 +14,25 @@
   "canvasFingerprint": true,
   "scrollStrategy": "gradual",
   "sendScrollEvent": true,
-  "keywords": ["your target keyword", "another keyword"]
+  "useSitemap": true,
+  "sitemapHomepageWeight": 60,
+  "keywords": ["target keyword", "brand name"],
+  "usePublicProxy": false,
+  "proxySourceURLs": [],
+  "githubRepos": [],
+  "checkerWorkers": 25,
+  "privateProxies": [
+    {
+      "host": "proxy.example.com",
+      "port": 8080,
+      "user": "your_username",
+      "pass": "your_password",
+      "protocol": "http"
+    }
+  ],
+  "usePrivateProxy": false,
+  "deviceType": "mixed",
+  "deviceBrands": [],
+  "referrerKeyword": "example.com",
+  "referrerEnabled": true
 }

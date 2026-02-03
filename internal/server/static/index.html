@@ -22,6 +22,8 @@
             'accent-hover': '#ef4444',
             success: '#22c55e',
             error: '#ef4444',
+            warning: '#f59e0b',
+            info: '#3b82f6',
           },
           fontFamily: {
             sans: ['Outfit', 'sans-serif'],
@@ -48,6 +50,19 @@
       to { opacity: 1; transform: scale(1); } 
     }
     .animate-fadeIn { animation: fadeIn 0.3s ease; }
+    
+    /* Collapsible sections */
+    .section-toggle { cursor: pointer; user-select: none; }
+    .section-content { transition: max-height 0.3s ease, opacity 0.3s ease; overflow: hidden; }
+    .section-content.collapsed { max-height: 0; opacity: 0; }
+    .section-content.expanded { max-height: 2000px; opacity: 1; }
+    
+    /* Tab styles */
+    .tab-btn { transition: all 0.2s ease; }
+    .tab-btn.active { border-color: #dc2626; color: #dc2626; background: rgba(220,38,38,0.1); }
+    
+    /* Proxy item animation */
+    .proxy-item { animation: fadeIn 0.2s ease; }
   </style>
 </head>
 <body class="bg-bg text-white min-h-screen font-sans leading-relaxed">
@@ -65,7 +80,7 @@
   </div>
 
   <div class="hidden" id="mainApp">
-    <div class="max-w-4xl mx-auto px-6 py-8">
+    <div class="max-w-6xl mx-auto px-6 py-8">
       <!-- GitHub Link Bar -->
       <div class="flex items-center justify-between mb-4 text-sm">
         <a href="https://github.com/eros1sh/eros-hitbot" target="_blank" rel="noopener noreferrer"
@@ -73,7 +88,7 @@
           <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
           <span class="group-hover:underline">eros1sh/eros-hitbot</span>
         </a>
-        <span class="text-zinc-600 text-xs">v2.1.0</span>
+        <span class="text-zinc-600 text-xs">v2.3.0</span>
       </div>
       
       <!-- Header -->
@@ -91,168 +106,827 @@
         </div>
       </header>
 
-      <!-- Test Parameters Card -->
-      <div class="bg-bg-card border border-border rounded-xl p-6 mb-5 shadow-lg">
-        <h2 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-5" id="cardParams">—</h2>
-        
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <!-- Domain -->
-          <div class="space-y-2">
-            <label for="domain" class="block text-sm font-medium text-zinc-400" id="labelDomain">—</label>
-            <input type="text" id="domain" placeholder="example.com" autocomplete="off"
-              class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
-          </div>
+      <!-- Tab Navigation -->
+      <div class="flex gap-2 mb-5 overflow-x-auto pb-2">
+        <button class="tab-btn px-4 py-2 text-sm font-medium rounded-lg border border-border text-zinc-400 hover:border-accent hover:text-accent active" data-tab="basic" id="tabBasic">
+          <span id="tabBasicText">Temel Ayarlar</span>
+        </button>
+        <button class="tab-btn px-4 py-2 text-sm font-medium rounded-lg border border-border text-zinc-400 hover:border-accent hover:text-accent" data-tab="traffic" id="tabTraffic">
+          <span id="tabTrafficText">Trafik Simülasyonu</span>
+        </button>
+        <button class="tab-btn px-4 py-2 text-sm font-medium rounded-lg border border-border text-zinc-400 hover:border-accent hover:text-accent" data-tab="seo" id="tabSeo">
+          <span id="tabSeoText">SEO & Analytics</span>
+        </button>
+        <button class="tab-btn px-4 py-2 text-sm font-medium rounded-lg border border-border text-zinc-400 hover:border-accent hover:text-accent" data-tab="gsc" id="tabGsc">
+          <span id="tabGscText">GSC & Advanced</span>
+        </button>
+        <button class="tab-btn px-4 py-2 text-sm font-medium rounded-lg border border-border text-zinc-400 hover:border-accent hover:text-accent" data-tab="advanced" id="tabAdvanced">
+          <span id="tabAdvancedText">Gelişmiş</span>
+        </button>
+        <button class="tab-btn px-4 py-2 text-sm font-medium rounded-lg border border-border text-zinc-400 hover:border-accent hover:text-accent" data-tab="proxy" id="tabProxy">
+          <span id="tabProxyText">Proxy</span>
+        </button>
+      </div>
+
+      <!-- Tab Content: Basic Settings -->
+      <div class="tab-content" id="tabContentBasic">
+        <div class="bg-bg-card border border-border rounded-xl p-6 mb-5 shadow-lg">
+          <h2 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-5" id="cardParams">—</h2>
           
-          <!-- GTAG -->
-          <div class="space-y-2">
-            <label for="gtagId" class="block text-sm font-medium text-zinc-400" id="labelGtag">—</label>
-            <input type="text" id="gtagId" placeholder="G-XXXXXXXXXXX" autocomplete="off"
-              class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
-          </div>
-          
-          <!-- Max Pages -->
-          <div class="space-y-2">
-            <label for="maxPages" class="block text-sm font-medium text-zinc-400" id="labelMaxPages">—</label>
-            <input type="number" id="maxPages" placeholder="5" min="1" max="100" value="5"
-              class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
-          </div>
-          
-          <!-- Duration -->
-          <div class="space-y-2">
-            <label for="duration" class="block text-sm font-medium text-zinc-400" id="labelDuration">—</label>
-            <input type="number" id="duration" placeholder="60" min="1" value="60"
-              class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
-          </div>
-          
-          <!-- HPM -->
-          <div class="space-y-2">
-            <label for="hpm" class="block text-sm font-medium text-zinc-400" id="labelHpm">—</label>
-            <input type="number" id="hpm" placeholder="35" min="1" max="120" value="35"
-              class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
-          </div>
-          
-          <!-- Max Concurrent -->
-          <div class="space-y-2">
-            <label for="maxConcurrent" class="block text-sm font-medium text-zinc-400" id="labelMaxConcurrent">—</label>
-            <input type="number" id="maxConcurrent" placeholder="10" min="1" max="50" value="10" title="Paralel tarayıcı sayısı"
-              class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
-          </div>
-          
-          <!-- Output Dir -->
-          <div class="space-y-2">
-            <label for="outputDir" class="block text-sm font-medium text-zinc-400" id="labelOutputDir">—</label>
-            <input type="text" id="outputDir" placeholder="./reports" autocomplete="off"
-              class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
-          </div>
-          
-          <!-- Export Format -->
-          <div class="space-y-2">
-            <label for="exportFormat" class="block text-sm font-medium text-zinc-400" id="labelExportFormat">—</label>
-            <select id="exportFormat"
-              class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors cursor-pointer">
-              <option value="both" id="optExportBoth">CSV + JSON + HTML</option>
-              <option value="csv" id="optExportCsv">CSV</option>
-              <option value="json" id="optExportJson">JSON</option>
-              <option value="html" id="optExportHtml">HTML</option>
-            </select>
-          </div>
-          
-          <!-- Scroll Strategy -->
-          <div class="space-y-2">
-            <label for="scrollStrategy" class="block text-sm font-medium text-zinc-400" id="labelScrollStrategy">—</label>
-            <select id="scrollStrategy"
-              class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors cursor-pointer">
-              <option value="gradual" id="optScrollGradual">Normal (Kademeli)</option>
-              <option value="fast" id="optScrollFast">Hızlı</option>
-              <option value="reader" id="optScrollReader">Okuyucu (Yavaş)</option>
-            </select>
-          </div>
-          
-          <!-- Keywords - Full Width -->
-          <div class="space-y-2 sm:col-span-2 lg:col-span-3">
-            <label for="keywords" class="block text-sm font-medium text-zinc-400" id="labelKeywords">—</label>
-            <textarea id="keywords" rows="3" placeholder="target keyword, long tail keyword, brand name"
-              class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600 resize-y min-h-[70px]"></textarea>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Domain -->
+            <div class="space-y-2">
+              <label for="domain" class="block text-sm font-medium text-zinc-400" id="labelDomain">—</label>
+              <input type="text" id="domain" placeholder="example.com" autocomplete="off"
+                class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+            </div>
+            
+            <!-- GTAG -->
+            <div class="space-y-2">
+              <label for="gtagId" class="block text-sm font-medium text-zinc-400" id="labelGtag">—</label>
+              <input type="text" id="gtagId" placeholder="G-XXXXXXXXXXX" autocomplete="off"
+                class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+            </div>
+            
+            <!-- Max Pages -->
+            <div class="space-y-2">
+              <label for="maxPages" class="block text-sm font-medium text-zinc-400" id="labelMaxPages">—</label>
+              <input type="number" id="maxPages" placeholder="5" min="1" max="100" value="5"
+                class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+            </div>
+            
+            <!-- Duration -->
+            <div class="space-y-2">
+              <label for="duration" class="block text-sm font-medium text-zinc-400" id="labelDuration">—</label>
+              <input type="number" id="duration" placeholder="60" min="1" value="60"
+                class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+            </div>
+            
+            <!-- HPM -->
+            <div class="space-y-2">
+              <label for="hpm" class="block text-sm font-medium text-zinc-400" id="labelHpm">—</label>
+              <input type="number" id="hpm" placeholder="35" min="1" max="120" value="35"
+                class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+            </div>
+            
+            <!-- Max Concurrent -->
+            <div class="space-y-2">
+              <label for="maxConcurrent" class="block text-sm font-medium text-zinc-400" id="labelMaxConcurrent">—</label>
+              <input type="number" id="maxConcurrent" placeholder="10" min="1" max="50" value="10"
+                class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+            </div>
+            
+            <!-- Output Dir -->
+            <div class="space-y-2">
+              <label for="outputDir" class="block text-sm font-medium text-zinc-400" id="labelOutputDir">—</label>
+              <input type="text" id="outputDir" placeholder="./reports" autocomplete="off"
+                class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+            </div>
+            
+            <!-- Export Format -->
+            <div class="space-y-2">
+              <label for="exportFormat" class="block text-sm font-medium text-zinc-400" id="labelExportFormat">—</label>
+              <select id="exportFormat"
+                class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors cursor-pointer">
+                <option value="both" id="optExportBoth">CSV + JSON + HTML</option>
+                <option value="csv" id="optExportCsv">CSV</option>
+                <option value="json" id="optExportJson">JSON</option>
+                <option value="html" id="optExportHtml">HTML</option>
+              </select>
+            </div>
+            
+            <!-- Scroll Strategy -->
+            <div class="space-y-2">
+              <label for="scrollStrategy" class="block text-sm font-medium text-zinc-400" id="labelScrollStrategy">—</label>
+              <select id="scrollStrategy"
+                  class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors cursor-pointer">
+                  <option value="gradual" id="optScrollGradual">Normal (Kademeli)</option>
+                  <option value="fast" id="optScrollFast">Hızlı</option>
+                  <option value="reader" id="optScrollReader">Okuyucu (Yavaş)</option>
+                </select>
+              </div>
           </div>
           
           <!-- Checkboxes Row -->
-          <div class="flex items-center gap-2">
-            <input type="checkbox" id="canvasFingerprint" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer">
-            <label for="canvasFingerprint" class="text-sm text-zinc-400 cursor-pointer" id="labelCanvasFp">—</label>
-          </div>
-          
-          <div class="flex items-center gap-2">
-            <input type="checkbox" id="sendScrollEvent" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer">
-            <label for="sendScrollEvent" class="text-sm text-zinc-400 cursor-pointer" id="labelScrollEvent">—</label>
-          </div>
-          
-          <div class="flex items-center gap-2">
-            <input type="checkbox" id="useSitemap" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer">
-            <label for="useSitemap" class="text-sm text-zinc-400 cursor-pointer" id="labelUseSitemap">—</label>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5 pt-5 border-t border-border/50">
+            <div class="flex items-center gap-2">
+              <input type="checkbox" id="canvasFingerprint" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer">
+              <label for="canvasFingerprint" class="text-sm text-zinc-400 cursor-pointer" id="labelCanvasFp">—</label>
+            </div>
+            
+            <div class="flex items-center gap-2">
+              <input type="checkbox" id="sendScrollEvent" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer">
+              <label for="sendScrollEvent" class="text-sm text-zinc-400 cursor-pointer" id="labelScrollEvent">—</label>
+            </div>
+            
+            <div class="flex items-center gap-2">
+              <input type="checkbox" id="useSitemap" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer">
+              <label for="useSitemap" class="text-sm text-zinc-400 cursor-pointer" id="labelUseSitemap">—</label>
+            </div>
+            
+            <div class="flex items-center gap-2">
+              <input type="checkbox" id="antiDetectMode" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+              <label for="antiDetectMode" class="text-sm text-zinc-400 cursor-pointer" id="labelAntiDetect">—</label>
+            </div>
           </div>
           
           <!-- Sitemap Weight -->
-          <div class="space-y-2">
-            <label for="sitemapHomepageWeight" class="block text-sm font-medium text-zinc-400" id="labelSitemapHomepageWeight">—</label>
-            <input type="number" id="sitemapHomepageWeight" placeholder="60" min="0" max="100" value="60" title="Anasayfaya gidecek istek yüzdesi"
-              class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+            <div class="space-y-2">
+              <label for="sitemapHomepageWeight" class="block text-sm font-medium text-zinc-400" id="labelSitemapHomepageWeight">—</label>
+              <input type="number" id="sitemapHomepageWeight" placeholder="60" min="0" max="100" value="60"
+                class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+            </div>
           </div>
         </div>
-        
-        <!-- Proxy Settings - Collapsible Section -->
-        <div class="mt-6 pt-5 border-t border-border/50">
-          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4" id="proxySettingsTitle">Proxy Ayarları</h3>
+      </div>
+
+      <!-- Tab Content: Traffic Simulation -->
+      <div class="tab-content hidden" id="tabContentTraffic">
+        <div class="bg-bg-card border border-border rounded-xl p-6 mb-5 shadow-lg">
+          <h2 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-5" id="cardTrafficSim">Trafik Simülasyonu</h2>
           
-          <!-- Private Proxy -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Device Type -->
             <div class="space-y-2">
-              <label for="proxyHost" class="block text-sm font-medium text-zinc-400" id="labelProxyHost">—</label>
-              <input type="text" id="proxyHost" placeholder="proxy.example.com" autocomplete="off"
+              <label for="deviceType" class="block text-sm font-medium text-zinc-400" id="labelDeviceType">—</label>
+              <select id="deviceType"
+                class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors cursor-pointer">
+                <option value="mixed" id="optDeviceMixed">Karışık (Tümü)</option>
+                <option value="desktop" id="optDeviceDesktop">Masaüstü</option>
+                <option value="mobile" id="optDeviceMobile">Mobil</option>
+                <option value="tablet" id="optDeviceTablet">Tablet</option>
+              </select>
+            </div>
+            
+            <!-- Min Page Duration -->
+            <div class="space-y-2">
+              <label for="minPageDuration" class="block text-sm font-medium text-zinc-400" id="labelMinPageDuration">Min Sayfa Süresi (sn)</label>
+              <input type="number" id="minPageDuration" placeholder="15" min="1" max="300" value="15"
                 class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
             </div>
             
+            <!-- Max Page Duration -->
             <div class="space-y-2">
-              <label for="proxyPort" class="block text-sm font-medium text-zinc-400" id="labelProxyPort">—</label>
-              <input type="number" id="proxyPort" placeholder="3120" min="1" max="65535" autocomplete="off"
+              <label for="maxPageDuration" class="block text-sm font-medium text-zinc-400" id="labelMaxPageDuration">Max Sayfa Süresi (sn)</label>
+              <input type="number" id="maxPageDuration" placeholder="120" min="1" max="600" value="120"
                 class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
             </div>
             
+            <!-- Min Scroll Percent -->
             <div class="space-y-2">
-              <label for="proxyUser" class="block text-sm font-medium text-zinc-400" id="labelProxyUser">—</label>
-              <input type="text" id="proxyUser" placeholder="" autocomplete="off"
+              <label for="minScrollPercent" class="block text-sm font-medium text-zinc-400" id="labelMinScrollPercent">Min Scroll (%)</label>
+              <input type="number" id="minScrollPercent" placeholder="25" min="0" max="100" value="25"
                 class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
             </div>
             
+            <!-- Max Scroll Percent -->
             <div class="space-y-2">
-              <label for="proxyPass" class="block text-sm font-medium text-zinc-400" id="labelProxyPass">—</label>
-              <input type="password" id="proxyPass" placeholder="" autocomplete="off"
+              <label for="maxScrollPercent" class="block text-sm font-medium text-zinc-400" id="labelMaxScrollPercent">Max Scroll (%)</label>
+              <input type="number" id="maxScrollPercent" placeholder="100" min="0" max="100" value="100"
                 class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+            </div>
+            
+            <!-- Click Probability -->
+            <div class="space-y-2">
+              <label for="clickProbability" class="block text-sm font-medium text-zinc-400" id="labelClickProbability">Tıklama Olasılığı (%)</label>
+              <input type="number" id="clickProbability" placeholder="30" min="0" max="100" value="30"
+                class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+            </div>
+          </div>
+          
+          <!-- Session Depth Simulation -->
+          <div class="mt-5 pt-5 border-t border-border/50">
+            <h3 class="text-sm font-medium text-zinc-300 mb-4" id="sectionSessionDepth">Session Depth Simülasyonu</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div class="space-y-2">
+                <label for="sessionMinPages" class="block text-sm font-medium text-zinc-400" id="labelSessionMinPages">Min Sayfa/Oturum</label>
+                <input type="number" id="sessionMinPages" placeholder="2" min="1" max="20" value="2"
+                  class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+              </div>
+              <div class="space-y-2">
+                <label for="sessionMaxPages" class="block text-sm font-medium text-zinc-400" id="labelSessionMaxPages">Max Sayfa/Oturum</label>
+                <input type="number" id="sessionMaxPages" placeholder="5" min="1" max="50" value="5"
+                  class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+              </div>
+              <div class="flex items-center gap-2 pt-7">
+                <input type="checkbox" id="enableSessionDepth" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+                <label for="enableSessionDepth" class="text-sm text-zinc-400 cursor-pointer" id="labelEnableSessionDepth">Session Depth Aktif</label>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Bounce Rate Control -->
+          <div class="mt-5 pt-5 border-t border-border/50">
+            <h3 class="text-sm font-medium text-zinc-300 mb-4" id="sectionBounceRate">Bounce Rate Kontrolü</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div class="space-y-2">
+                <label for="targetBounceRate" class="block text-sm font-medium text-zinc-400" id="labelTargetBounceRate">Hedef Bounce Rate (%)</label>
+                <input type="number" id="targetBounceRate" placeholder="35" min="0" max="100" value="35"
+                  class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+              </div>
+              <div class="flex items-center gap-2 pt-7">
+                <input type="checkbox" id="enableBounceControl" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+                <label for="enableBounceControl" class="text-sm text-zinc-400 cursor-pointer" id="labelEnableBounceControl">Bounce Kontrolü Aktif</label>
+              </div>
+            </div>
+            <p class="text-xs text-zinc-500 mt-2" id="bounceRateHint">Düşük bounce rate için ziyaretçiler birden fazla sayfa gezecek</p>
+          </div>
+          
+          <!-- Device Brands - Multi Select -->
+          <div class="space-y-2 mt-5 pt-5 border-t border-border/50">
+            <label class="block text-sm font-medium text-zinc-400" id="labelDeviceBrands">—</label>
+            <div class="flex flex-wrap gap-2" id="deviceBrandsContainer">
+              <label class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-bg-input border border-border rounded-lg cursor-pointer hover:border-accent transition-colors">
+                <input type="checkbox" value="apple" class="device-brand-checkbox w-3.5 h-3.5 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0">
+                <span class="text-xs text-zinc-300">Apple</span>
+              </label>
+              <label class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-bg-input border border-border rounded-lg cursor-pointer hover:border-accent transition-colors">
+                <input type="checkbox" value="samsung" class="device-brand-checkbox w-3.5 h-3.5 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0">
+                <span class="text-xs text-zinc-300">Samsung</span>
+              </label>
+              <label class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-bg-input border border-border rounded-lg cursor-pointer hover:border-accent transition-colors">
+                <input type="checkbox" value="google" class="device-brand-checkbox w-3.5 h-3.5 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0">
+                <span class="text-xs text-zinc-300">Google</span>
+              </label>
+              <label class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-bg-input border border-border rounded-lg cursor-pointer hover:border-accent transition-colors">
+                <input type="checkbox" value="xiaomi" class="device-brand-checkbox w-3.5 h-3.5 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0">
+                <span class="text-xs text-zinc-300">Xiaomi</span>
+              </label>
+              <label class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-bg-input border border-border rounded-lg cursor-pointer hover:border-accent transition-colors">
+                <input type="checkbox" value="huawei" class="device-brand-checkbox w-3.5 h-3.5 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0">
+                <span class="text-xs text-zinc-300">Huawei</span>
+              </label>
+              <label class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-bg-input border border-border rounded-lg cursor-pointer hover:border-accent transition-colors">
+                <input type="checkbox" value="oneplus" class="device-brand-checkbox w-3.5 h-3.5 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0">
+                <span class="text-xs text-zinc-300">OnePlus</span>
+              </label>
+              <label class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-bg-input border border-border rounded-lg cursor-pointer hover:border-accent transition-colors">
+                <input type="checkbox" value="windows" class="device-brand-checkbox w-3.5 h-3.5 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0">
+                <span class="text-xs text-zinc-300">Windows</span>
+              </label>
+              <label class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-bg-input border border-border rounded-lg cursor-pointer hover:border-accent transition-colors">
+                <input type="checkbox" value="mac" class="device-brand-checkbox w-3.5 h-3.5 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0">
+                <span class="text-xs text-zinc-300">Mac</span>
+              </label>
+              <label class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-bg-input border border-border rounded-lg cursor-pointer hover:border-accent transition-colors">
+                <input type="checkbox" value="linux" class="device-brand-checkbox w-3.5 h-3.5 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0">
+                <span class="text-xs text-zinc-300">Linux</span>
+              </label>
+            </div>
+            <p class="text-xs text-zinc-500" id="deviceBrandsHint">Boş bırakılırsa tüm markalar kullanılır</p>
+          </div>
+          
+          <!-- Behavior Simulation Checkboxes -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5 pt-5 border-t border-border/50">
+            <div class="flex items-center gap-2">
+              <input type="checkbox" id="simulateMouseMove" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+              <label for="simulateMouseMove" class="text-sm text-zinc-400 cursor-pointer" id="labelSimulateMouseMove">Mouse Hareketi</label>
+            </div>
+            
+            <div class="flex items-center gap-2">
+              <input type="checkbox" id="simulateKeyboard" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer">
+              <label for="simulateKeyboard" class="text-sm text-zinc-400 cursor-pointer" id="labelSimulateKeyboard">Klavye Simülasyonu</label>
+            </div>
+            
+            <div class="flex items-center gap-2">
+              <input type="checkbox" id="simulateClicks" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+              <label for="simulateClicks" class="text-sm text-zinc-400 cursor-pointer" id="labelSimulateClicks">Tıklama Simülasyonu</label>
+            </div>
+            
+            <div class="flex items-center gap-2">
+              <input type="checkbox" id="simulateFocus" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+              <label for="simulateFocus" class="text-sm text-zinc-400 cursor-pointer" id="labelSimulateFocus">Focus/Blur</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content: SEO & Analytics -->
+      <div class="tab-content hidden" id="tabContentSeo">
+        <div class="bg-bg-card border border-border rounded-xl p-6 mb-5 shadow-lg">
+          <h2 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-5" id="cardSeoAnalytics">SEO & Analytics</h2>
+          
+          <!-- Referrer Settings -->
+          <div class="mb-5 pb-5 border-b border-border/50">
+            <h3 class="text-sm font-medium text-zinc-300 mb-4" id="sectionReferrer">Referrer Ayarları</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div class="space-y-2 sm:col-span-2">
+                <label for="referrerKeyword" class="block text-sm font-medium text-zinc-400" id="labelReferrerKeyword">—</label>
+                <div class="flex gap-3 items-start">
+                  <div class="flex-1">
+                    <input type="text" id="referrerKeyword" placeholder="örnek anahtar kelime" autocomplete="off"
+                      class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+                    <p class="text-xs text-zinc-500 mt-1" id="referrerKeywordHint">Bu kelime ile Google'dan gelmiş gibi görünür</p>
+                  </div>
+                  <div class="flex items-center gap-2 pt-2">
+                    <input type="checkbox" id="referrerEnabled" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer">
+                    <label for="referrerEnabled" class="text-sm text-zinc-400 cursor-pointer" id="labelReferrerEnabled">Aktif</label>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Referrer Source -->
+              <div class="space-y-2">
+                <label for="referrerSource" class="block text-sm font-medium text-zinc-400" id="labelReferrerSource">Referrer Kaynağı</label>
+                <select id="referrerSource"
+                  class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors cursor-pointer">
+                  <option value="google">Google</option>
+                  <option value="bing">Bing</option>
+                  <option value="yahoo">Yahoo</option>
+                  <option value="duckduckgo">DuckDuckGo</option>
+                  <option value="mixed">Karışık</option>
+                  <option value="direct">Direkt</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Keywords -->
+          <div class="mb-5 pb-5 border-b border-border/50">
+            <h3 class="text-sm font-medium text-zinc-300 mb-4" id="sectionKeywords">Anahtar Kelimeler</h3>
+            <div class="space-y-2">
+              <label for="keywords" class="block text-sm font-medium text-zinc-400" id="labelKeywords">—</label>
+              <textarea id="keywords" rows="3" placeholder="target keyword, long tail keyword, brand name"
+                class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600 resize-y min-h-[70px]"></textarea>
+            </div>
+          </div>
+          
+          <!-- Custom Dimensions & Metrics -->
+          <div class="mb-5 pb-5 border-b border-border/50">
+            <h3 class="text-sm font-medium text-zinc-300 mb-4" id="sectionCustomDimensions">Custom Dimensions & Metrics (GA4)</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="space-y-2">
+                <label for="customDimensions" class="block text-sm font-medium text-zinc-400" id="labelCustomDimensions">Custom Dimensions (JSON)</label>
+                <textarea id="customDimensions" rows="3" placeholder='{"user_type": "organic", "campaign": "seo"}'
+                  class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600 resize-y min-h-[70px]"></textarea>
+              </div>
+              <div class="space-y-2">
+                <label for="customMetrics" class="block text-sm font-medium text-zinc-400" id="labelCustomMetrics">Custom Metrics (JSON)</label>
+                <textarea id="customMetrics" rows="3" placeholder='{"engagement_score": 85, "quality_score": 90}'
+                  class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600 resize-y min-h-[70px]"></textarea>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 mt-3">
+              <input type="checkbox" id="enableCustomDimensions" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer">
+              <label for="enableCustomDimensions" class="text-sm text-zinc-400 cursor-pointer" id="labelEnableCustomDimensions">Custom Dimensions/Metrics Gönder</label>
+            </div>
+          </div>
+          
+          <!-- Analytics Events -->
+          <div class="mb-5 pb-5 border-b border-border/50">
+            <h3 class="text-sm font-medium text-zinc-300 mb-4" id="sectionAnalyticsEvents">Analytics Eventleri</h3>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="sendPageView" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+                <label for="sendPageView" class="text-sm text-zinc-400 cursor-pointer" id="labelSendPageView">Page View</label>
+              </div>
+              
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="sendSessionStart" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+                <label for="sendSessionStart" class="text-sm text-zinc-400 cursor-pointer" id="labelSendSessionStart">Session Start</label>
+              </div>
+              
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="sendUserEngagement" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+                <label for="sendUserEngagement" class="text-sm text-zinc-400 cursor-pointer" id="labelSendUserEngagement">User Engagement</label>
+              </div>
+              
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="sendFirstVisit" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+                <label for="sendFirstVisit" class="text-sm text-zinc-400 cursor-pointer" id="labelSendFirstVisit">First Visit</label>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Geo Location -->
+          <div>
+            <h3 class="text-sm font-medium text-zinc-300 mb-4" id="sectionGeoLocation">Coğrafi Konum</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div class="space-y-2">
+                <label for="geoCountry" class="block text-sm font-medium text-zinc-400" id="labelGeoCountry">Ülke</label>
+                <select id="geoCountry"
+                  class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors cursor-pointer">
+                  <option value="">Rastgele</option>
+                  <option value="TR">Türkiye</option>
+                  <option value="US">ABD</option>
+                  <option value="GB">İngiltere</option>
+                  <option value="DE">Almanya</option>
+                  <option value="FR">Fransa</option>
+                  <option value="NL">Hollanda</option>
+                  <option value="RU">Rusya</option>
+                  <option value="JP">Japonya</option>
+                  <option value="BR">Brezilya</option>
+                  <option value="IN">Hindistan</option>
+                </select>
+              </div>
+              
+              <div class="space-y-2">
+                <label for="geoTimezone" class="block text-sm font-medium text-zinc-400" id="labelGeoTimezone">Saat Dilimi</label>
+                <select id="geoTimezone"
+                  class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors cursor-pointer">
+                  <option value="">Otomatik</option>
+                  <option value="Europe/Istanbul">Europe/Istanbul (UTC+3)</option>
+                  <option value="America/New_York">America/New_York (UTC-5)</option>
+                  <option value="America/Los_Angeles">America/Los_Angeles (UTC-8)</option>
+                  <option value="Europe/London">Europe/London (UTC+0)</option>
+                  <option value="Europe/Berlin">Europe/Berlin (UTC+1)</option>
+                  <option value="Asia/Tokyo">Asia/Tokyo (UTC+9)</option>
+                </select>
+              </div>
+              
+              <div class="space-y-2">
+                <label for="geoLanguage" class="block text-sm font-medium text-zinc-400" id="labelGeoLanguage">Dil</label>
+                <select id="geoLanguage"
+                  class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors cursor-pointer">
+                  <option value="">Otomatik</option>
+                  <option value="tr-TR">Türkçe (tr-TR)</option>
+                  <option value="en-US">English (en-US)</option>
+                  <option value="en-GB">English UK (en-GB)</option>
+                  <option value="de-DE">Deutsch (de-DE)</option>
+                  <option value="fr-FR">Français (fr-FR)</option>
+                  <option value="es-ES">Español (es-ES)</option>
+                  <option value="ja-JP">日本語 (ja-JP)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content: GSC & Advanced Analytics -->
+      <div class="tab-content hidden" id="tabContentGsc">
+        <div class="bg-bg-card border border-border rounded-xl p-6 mb-5 shadow-lg">
+          <h2 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-5" id="cardGscAdvanced">Google Search Console & Gelişmiş Analytics</h2>
+          
+          <!-- GSC Integration -->
+          <div class="mb-5 pb-5 border-b border-border/50">
+            <h3 class="text-sm font-medium text-zinc-300 mb-4" id="sectionGscIntegration">Google Search Console Entegrasyonu</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="space-y-2">
+                <label for="gscPropertyUrl" class="block text-sm font-medium text-zinc-400" id="labelGscPropertyUrl">GSC Property URL</label>
+                <input type="text" id="gscPropertyUrl" placeholder="https://example.com" autocomplete="off"
+                  class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+              </div>
+              <div class="space-y-2">
+                <label for="gscApiKey" class="block text-sm font-medium text-zinc-400" id="labelGscApiKey">GSC API Key (JSON)</label>
+                <textarea id="gscApiKey" rows="4" placeholder='{"type": "service_account", "project_id": "...", "private_key_id": "...", ...}' autocomplete="off"
+                  class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-xs focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600 resize-y min-h-[80px]"></textarea>
+                <p class="text-xs text-zinc-500" id="gscApiKeyHint">Google Cloud Console'dan Service Account JSON key'ini buraya yapıştırın</p>
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-4 mt-4">
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="enableGscIntegration" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer">
+                <label for="enableGscIntegration" class="text-sm text-zinc-400 cursor-pointer" id="labelEnableGscIntegration">GSC Entegrasyonu Aktif</label>
+              </div>
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="useGscQueries" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer">
+                <label for="useGscQueries" class="text-sm text-zinc-400 cursor-pointer" id="labelUseGscQueries">GSC Sorgularını Kullan</label>
+              </div>
+              <button class="px-4 py-1.5 bg-info/20 hover:bg-info/30 text-info font-medium rounded-lg border border-info/30 transition-all duration-200 text-sm" id="btnFetchGscQueries" type="button">
+                <span id="btnFetchGscQueriesText">Sorguları Çek</span>
+              </button>
+            </div>
+            <p class="text-xs text-zinc-500 mt-2" id="gscIntegrationHint">GSC API ile gerçek arama sorgularını çekerek organik trafik simüle edin</p>
+            
+            <!-- GSC Queries Display -->
+            <div class="mt-4 hidden" id="gscQueriesContainer">
+              <label class="block text-sm font-medium text-zinc-400 mb-2" id="labelGscQueries">Çekilen GSC Sorguları</label>
+              <div class="bg-bg-input border border-border rounded-lg p-3 max-h-40 overflow-y-auto">
+                <div id="gscQueriesList" class="text-xs text-zinc-400 font-mono"></div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Returning Visitor Simulation -->
+          <div class="mb-5 pb-5 border-b border-border/50">
+            <h3 class="text-sm font-medium text-zinc-300 mb-4" id="sectionReturningVisitor">Returning Visitor Simülasyonu</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div class="space-y-2">
+                <label for="returningVisitorRate" class="block text-sm font-medium text-zinc-400" id="labelReturningVisitorRate">Returning Visitor Oranı (%)</label>
+                <input type="number" id="returningVisitorRate" placeholder="30" min="0" max="100" value="30"
+                  class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+              </div>
+              <div class="space-y-2">
+                <label for="returningVisitorDays" class="block text-sm font-medium text-zinc-400" id="labelReturningVisitorDays">Tekrar Ziyaret Aralığı (gün)</label>
+                <input type="number" id="returningVisitorDays" placeholder="7" min="1" max="90" value="7"
+                  class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+              </div>
+              <div class="flex items-center gap-2 pt-7">
+                <input type="checkbox" id="enableReturningVisitor" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+                <label for="enableReturningVisitor" class="text-sm text-zinc-400 cursor-pointer" id="labelEnableReturningVisitor">Returning Visitor Aktif</label>
+              </div>
+            </div>
+            <p class="text-xs text-zinc-500 mt-2" id="returningVisitorHint">Aynı client_id ile tekrar ziyaret simüle ederek returning visitor oranını artırın</p>
+          </div>
+          
+          <!-- Exit Page Control -->
+          <div class="mb-5 pb-5 border-b border-border/50">
+            <h3 class="text-sm font-medium text-zinc-300 mb-4" id="sectionExitPage">Exit Page Kontrolü</h3>
+            <div class="space-y-2">
+              <label for="exitPages" class="block text-sm font-medium text-zinc-400" id="labelExitPages">Çıkış Sayfaları (URL pattern, satır başına bir tane)</label>
+              <textarea id="exitPages" rows="3" placeholder="/contact&#10;/thank-you&#10;/checkout/complete"
+                class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600 resize-y min-h-[70px]"></textarea>
+            </div>
+            <div class="flex items-center gap-2 mt-3">
+              <input type="checkbox" id="enableExitPageControl" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer">
+              <label for="enableExitPageControl" class="text-sm text-zinc-400 cursor-pointer" id="labelEnableExitPageControl">Exit Page Kontrolü Aktif</label>
+            </div>
+            <p class="text-xs text-zinc-500 mt-2" id="exitPageHint">Belirtilen sayfalarda oturum sonlandırılır, diğer sayfalarda devam edilir</p>
+          </div>
+          
+          <!-- Browser Profile Persistence -->
+          <div class="mb-5 pb-5 border-b border-border/50">
+            <h3 class="text-sm font-medium text-zinc-300 mb-4" id="sectionBrowserProfile">Browser Profile Persistence</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="space-y-2">
+                <label for="browserProfilePath" class="block text-sm font-medium text-zinc-400" id="labelBrowserProfilePath">Profil Kayıt Dizini</label>
+                <input type="text" id="browserProfilePath" placeholder="./browser_profiles" autocomplete="off"
+                  class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+              </div>
+              <div class="space-y-2">
+                <label for="maxBrowserProfiles" class="block text-sm font-medium text-zinc-400" id="labelMaxBrowserProfiles">Max Profil Sayısı</label>
+                <input type="number" id="maxBrowserProfiles" placeholder="100" min="1" max="1000" value="100"
+                  class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-4 mt-4">
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="enableBrowserProfile" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer">
+                <label for="enableBrowserProfile" class="text-sm text-zinc-400 cursor-pointer" id="labelEnableBrowserProfile">Profil Persistence Aktif</label>
+              </div>
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="persistCookies" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+                <label for="persistCookies" class="text-sm text-zinc-400 cursor-pointer" id="labelPersistCookies">Cookie'leri Kaydet</label>
+              </div>
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="persistLocalStorage" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+                <label for="persistLocalStorage" class="text-sm text-zinc-400 cursor-pointer" id="labelPersistLocalStorage">LocalStorage Kaydet</label>
+              </div>
+            </div>
+            <p class="text-xs text-zinc-500 mt-2" id="browserProfileHint">Tarayıcı profillerini kaydederek returning visitor simülasyonunu güçlendirin</p>
+          </div>
+          
+          <!-- TLS Fingerprint Randomization -->
+          <div>
+            <h3 class="text-sm font-medium text-zinc-300 mb-4" id="sectionTlsFingerprint">TLS Fingerprint Randomization</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div class="space-y-2">
+                <label for="tlsFingerprintMode" class="block text-sm font-medium text-zinc-400" id="labelTlsFingerprintMode">Fingerprint Modu</label>
+                <select id="tlsFingerprintMode"
+                  class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors cursor-pointer">
+                  <option value="random">Rastgele</option>
+                  <option value="chrome">Chrome</option>
+                  <option value="firefox">Firefox</option>
+                  <option value="safari">Safari</option>
+                  <option value="edge">Edge</option>
+                </select>
+              </div>
+              <div class="flex items-center gap-2 pt-7">
+                <input type="checkbox" id="enableJa3Randomization" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+                <label for="enableJa3Randomization" class="text-sm text-zinc-400 cursor-pointer" id="labelEnableJa3Randomization">JA3 Randomization</label>
+              </div>
+              <div class="flex items-center gap-2 pt-7">
+                <input type="checkbox" id="enableJa4Randomization" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+                <label for="enableJa4Randomization" class="text-sm text-zinc-400 cursor-pointer" id="labelEnableJa4Randomization">JA4 Randomization</label>
+              </div>
+            </div>
+            <p class="text-xs text-zinc-500 mt-2" id="tlsFingerprintHint">JA3/JA4 TLS fingerprint'lerini randomize ederek bot tespitini zorlaştırın</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content: Advanced -->
+      <div class="tab-content hidden" id="tabContentAdvanced">
+        <div class="bg-bg-card border border-border rounded-xl p-6 mb-5 shadow-lg">
+          <h2 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-5" id="cardAdvanced">Gelişmiş Ayarlar</h2>
+          
+          <!-- Stealth & Anti-Detect -->
+          <div class="mb-5 pb-5 border-b border-border/50">
+            <h3 class="text-sm font-medium text-zinc-300 mb-4" id="sectionStealth">Stealth & Anti-Detect</h3>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="stealthWebdriver" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+                <label for="stealthWebdriver" class="text-sm text-zinc-400 cursor-pointer" id="labelStealthWebdriver">Webdriver Gizle</label>
+              </div>
+              
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="stealthChrome" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+                <label for="stealthChrome" class="text-sm text-zinc-400 cursor-pointer" id="labelStealthChrome">Chrome Gizle</label>
+              </div>
+              
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="stealthPlugins" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+                <label for="stealthPlugins" class="text-sm text-zinc-400 cursor-pointer" id="labelStealthPlugins">Plugin Spoof</label>
+              </div>
+              
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="stealthWebGL" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+                <label for="stealthWebGL" class="text-sm text-zinc-400 cursor-pointer" id="labelStealthWebGL">WebGL Noise</label>
+              </div>
+              
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="stealthAudio" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+                <label for="stealthAudio" class="text-sm text-zinc-400 cursor-pointer" id="labelStealthAudio">Audio Noise</label>
+              </div>
+              
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="stealthCanvas" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+                <label for="stealthCanvas" class="text-sm text-zinc-400 cursor-pointer" id="labelStealthCanvas">Canvas Noise</label>
+              </div>
+              
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="stealthTimezone" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+                <label for="stealthTimezone" class="text-sm text-zinc-400 cursor-pointer" id="labelStealthTimezone">Timezone Spoof</label>
+              </div>
+              
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="stealthLanguage" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+                <label for="stealthLanguage" class="text-sm text-zinc-400 cursor-pointer" id="labelStealthLanguage">Language Spoof</label>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Performance Settings -->
+          <div class="mb-5 pb-5 border-b border-border/50">
+            <h3 class="text-sm font-medium text-zinc-300 mb-4" id="sectionPerformance">Performans</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div class="space-y-2">
+                <label for="visitTimeout" class="block text-sm font-medium text-zinc-400" id="labelVisitTimeout">Ziyaret Timeout (sn)</label>
+                <input type="number" id="visitTimeout" placeholder="90" min="30" max="300" value="90"
+                  class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+              </div>
+              
+              <div class="space-y-2">
+                <label for="pageLoadWait" class="block text-sm font-medium text-zinc-400" id="labelPageLoadWait">Sayfa Yükleme Bekleme (ms)</label>
+                <input type="number" id="pageLoadWait" placeholder="1500" min="500" max="10000" value="1500"
+                  class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+              </div>
+              
+              <div class="space-y-2">
+                <label for="retryCount" class="block text-sm font-medium text-zinc-400" id="labelRetryCount">Hata Tekrar Sayısı</label>
+                <input type="number" id="retryCount" placeholder="3" min="0" max="10" value="3"
+                  class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+              </div>
+            </div>
+          </div>
+          
+          <!-- Resource Blocking -->
+          <div>
+            <h3 class="text-sm font-medium text-zinc-300 mb-4" id="sectionResourceBlocking">Kaynak Engelleme</h3>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="blockImages" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+                <label for="blockImages" class="text-sm text-zinc-400 cursor-pointer" id="labelBlockImages">Görselleri Engelle</label>
+              </div>
+              
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="blockStyles" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+                <label for="blockStyles" class="text-sm text-zinc-400 cursor-pointer" id="labelBlockStyles">CSS Engelle</label>
+              </div>
+              
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="blockFonts" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+                <label for="blockFonts" class="text-sm text-zinc-400 cursor-pointer" id="labelBlockFonts">Fontları Engelle</label>
+              </div>
+              
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="blockMedia" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+                <label for="blockMedia" class="text-sm text-zinc-400 cursor-pointer" id="labelBlockMedia">Medyayı Engelle</label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content: Proxy -->
+      <div class="tab-content hidden" id="tabContentProxy">
+        <div class="bg-bg-card border border-border rounded-xl p-6 mb-5 shadow-lg">
+          <h2 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-5" id="proxySettingsTitle">Proxy Ayarları</h2>
+          
+          <!-- Multi Private Proxy -->
+          <div class="mb-5 pb-5 border-b border-border/50">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-sm font-medium text-zinc-300" id="sectionPrivateProxy">Özel Proxy Listesi</h3>
+              <button class="px-3 py-1.5 bg-success/20 hover:bg-success/30 text-success font-medium rounded-lg border border-success/30 transition-all duration-200 text-sm flex items-center gap-1" id="btnAddProxy" type="button">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                <span id="btnAddProxyText">Proxy Ekle</span>
+              </button>
+            </div>
+            
+            <!-- Proxy List Container -->
+            <div id="privateProxyList" class="space-y-3">
+              <!-- Default first proxy -->
+              <div class="proxy-item grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 p-3 bg-bg-input/50 rounded-lg border border-border/50" data-proxy-index="0">
+                <div class="space-y-1">
+                  <label class="block text-xs font-medium text-zinc-500">Host</label>
+                  <input type="text" class="proxy-host w-full bg-bg-input border border-border rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-accent transition-colors placeholder:text-zinc-600" placeholder="proxy.example.com">
+                </div>
+                <div class="space-y-1">
+                  <label class="block text-xs font-medium text-zinc-500">Port</label>
+                  <input type="number" class="proxy-port w-full bg-bg-input border border-border rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-accent transition-colors placeholder:text-zinc-600" placeholder="3120" min="1" max="65535">
+                </div>
+                <div class="space-y-1">
+                  <label class="block text-xs font-medium text-zinc-500">Kullanıcı</label>
+                  <input type="text" class="proxy-user w-full bg-bg-input border border-border rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-accent transition-colors placeholder:text-zinc-600" placeholder="username">
+                </div>
+                <div class="space-y-1">
+                  <label class="block text-xs font-medium text-zinc-500">Şifre</label>
+                  <input type="password" class="proxy-pass w-full bg-bg-input border border-border rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-accent transition-colors placeholder:text-zinc-600" placeholder="password">
+                </div>
+                <div class="flex items-end gap-2">
+                  <button class="btn-remove-proxy px-3 py-2 bg-error/20 hover:bg-error/30 text-error font-medium rounded-lg border border-error/30 transition-all duration-200 text-sm hidden" type="button">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                  </button>
+                  <button class="btn-test-proxy px-3 py-2 bg-info/20 hover:bg-info/30 text-info font-medium rounded-lg border border-info/30 transition-all duration-200 text-sm" type="button">
+                    <span class="text-xs">Test</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <p class="text-xs text-zinc-500 mt-3" id="privateProxyHint">Birden fazla özel proxy ekleyerek rotasyon yapabilirsiniz</p>
+          </div>
+          
+          <!-- Proxy Rotation Settings -->
+          <div class="mb-5 pb-5 border-b border-border/50">
+            <h3 class="text-sm font-medium text-zinc-300 mb-4" id="sectionProxyRotation">Proxy Rotasyon Ayarları</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div class="space-y-2">
+                <label for="proxyRotationMode" class="block text-sm font-medium text-zinc-400" id="labelProxyRotationMode">Rotasyon Modu</label>
+                <select id="proxyRotationMode"
+                  class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors cursor-pointer">
+                  <option value="round-robin">Round Robin</option>
+                  <option value="random">Rastgele</option>
+                  <option value="least-used">En Az Kullanılan</option>
+                  <option value="fastest">En Hızlı</option>
+                </select>
+              </div>
+              <div class="space-y-2">
+                <label for="proxyRotationInterval" class="block text-sm font-medium text-zinc-400" id="labelProxyRotationInterval">Rotasyon Aralığı (istek)</label>
+                <input type="number" id="proxyRotationInterval" placeholder="1" min="1" max="100" value="1"
+                  class="w-full bg-bg-input border border-border rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-colors placeholder:text-zinc-600">
+              </div>
+              <div class="flex items-center gap-2 pt-7">
+                <input type="checkbox" id="enableProxyRotation" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer" checked>
+                <label for="enableProxyRotation" class="text-sm text-zinc-400 cursor-pointer" id="labelEnableProxyRotation">Proxy Rotasyonu Aktif</label>
+              </div>
             </div>
           </div>
           
           <!-- Public Proxy Section -->
-          <div class="bg-bg-input/50 rounded-lg p-4 border border-border/50">
-            <div class="flex flex-wrap items-center gap-4 mb-3">
-              <div class="flex items-center gap-2">
-                <input type="checkbox" id="usePublicProxy" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer">
-                <label for="usePublicProxy" class="text-sm font-medium text-zinc-300 cursor-pointer" id="labelUsePublicProxy">—</label>
+          <div>
+            <h3 class="text-sm font-medium text-zinc-300 mb-4" id="sectionPublicProxy">Public Proxy</h3>
+            <div class="bg-bg-input/50 rounded-lg p-4 border border-border/50">
+              <div class="flex flex-wrap items-center gap-4 mb-3">
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" id="usePublicProxy" class="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent focus:ring-offset-0 cursor-pointer">
+                  <label for="usePublicProxy" class="text-sm font-medium text-zinc-300 cursor-pointer" id="labelUsePublicProxy">—</label>
+                </div>
+                
+                <div class="flex items-center gap-2">
+                  <label for="checkerWorkers" class="text-sm text-zinc-400" id="labelCheckerWorkers">—</label>
+                  <input type="number" id="checkerWorkers" placeholder="25" min="1" max="100" value="25"
+                    class="w-16 bg-bg-input border border-border rounded-lg px-2 py-1.5 text-white font-mono text-sm focus:outline-none focus:border-accent transition-colors text-center">
+                </div>
+                
+                <button class="px-4 py-1.5 bg-bg-input hover:bg-border text-white font-medium rounded-lg border border-border transition-all duration-200 text-sm" id="btnProxyFetch" type="button">—</button>
+                
+                <button class="px-4 py-1.5 bg-info/20 hover:bg-info/30 text-info font-medium rounded-lg border border-info/30 transition-all duration-200 text-sm" id="btnProxyExport" type="button">
+                  <span id="btnProxyExportText">Dışa Aktar</span>
+                </button>
               </div>
               
-              <div class="flex items-center gap-2">
-                <label for="checkerWorkers" class="text-sm text-zinc-400" id="labelCheckerWorkers">—</label>
-                <input type="number" id="checkerWorkers" placeholder="25" min="1" max="100" value="25" title="Aynı anda test edilen proxy sayısı"
-                  class="w-16 bg-bg-input border border-border rounded-lg px-2 py-1.5 text-white font-mono text-sm focus:outline-none focus:border-accent transition-colors text-center">
-              </div>
+              <p class="text-xs text-zinc-500" id="publicProxyDesc">Açık proxy listelerinden otomatik çeker ve test eder</p>
               
-              <button class="px-4 py-1.5 bg-bg-input hover:bg-border text-white font-medium rounded-lg border border-border transition-all duration-200 text-sm" id="btnProxyFetch" type="button">—</button>
+              <!-- Proxy Stats -->
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-border/30">
+                <div class="bg-bg rounded-lg p-3 text-center">
+                  <div class="text-lg font-bold font-mono text-purple-400" id="proxyStatLive">0</div>
+                  <div class="text-xs text-zinc-500" id="proxyStatLiveLabel">Canlı</div>
+                </div>
+                <div class="bg-bg rounded-lg p-3 text-center">
+                  <div class="text-lg font-bold font-mono text-blue-400" id="proxyStatQueue">0</div>
+                  <div class="text-xs text-zinc-500" id="proxyStatQueueLabel">Kuyrukta</div>
+                </div>
+                <div class="bg-bg rounded-lg p-3 text-center">
+                  <div class="text-lg font-bold font-mono text-success" id="proxyStatAdded">0</div>
+                  <div class="text-xs text-zinc-500" id="proxyStatAddedLabel">Eklenen</div>
+                </div>
+                <div class="bg-bg rounded-lg p-3 text-center">
+                  <div class="text-lg font-bold font-mono text-error" id="proxyStatRemoved">0</div>
+                  <div class="text-xs text-zinc-500" id="proxyStatRemovedLabel">Silinen</div>
+                </div>
+              </div>
             </div>
-            
-            <p class="text-xs text-zinc-500" id="publicProxyDesc">Açık proxy listelerinden otomatik çeker ve test eder</p>
           </div>
         </div>
-        
-        <!-- Actions -->
-        <div class="flex items-center gap-3 mt-6 pt-5 border-t border-border/50 flex-wrap">
+      </div>
+
+      <!-- Actions Bar -->
+      <div class="bg-bg-card border border-border rounded-xl p-4 mb-5 shadow-lg">
+        <div class="flex items-center gap-3 flex-wrap">
           <button class="px-6 py-2.5 bg-accent hover:bg-accent-hover text-white font-semibold rounded-lg transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg shadow-accent/20" id="btnStart">—</button>
           <button class="px-6 py-2.5 bg-bg-input hover:bg-border text-white font-semibold rounded-lg border border-border transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed" id="btnStop" disabled>—</button>
           
@@ -267,7 +941,7 @@
       <div class="bg-bg-card border border-border rounded-xl p-6 mb-5 shadow-lg">
         <h2 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-5" id="cardMetrics">—</h2>
         
-        <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4">
           <div class="bg-bg-input rounded-lg p-4 text-center">
             <div class="text-2xl font-bold font-mono text-accent" id="metricTotal">0</div>
             <div class="text-xs text-zinc-500 mt-1" id="metricLabelTotal">—</div>
@@ -292,12 +966,27 @@
             <div class="text-2xl font-bold font-mono text-purple-400" id="metricLiveProxy">0</div>
             <div class="text-xs text-zinc-500 mt-1" id="metricLabelLiveProxy">—</div>
           </div>
+          
+          <div class="bg-bg-input rounded-lg p-4 text-center border border-warning/30">
+            <div class="text-2xl font-bold font-mono text-warning" id="metricQuality">—</div>
+            <div class="text-xs text-zinc-500 mt-1" id="metricLabelQuality">Kalite</div>
+          </div>
+          
+          <div class="bg-bg-input rounded-lg p-4 text-center border border-info/30">
+            <div class="text-2xl font-bold font-mono text-info" id="metricBounceRate">—</div>
+            <div class="text-xs text-zinc-500 mt-1" id="metricLabelBounceRate">Bounce</div>
+          </div>
         </div>
       </div>
 
       <!-- Log Card -->
       <div class="bg-bg-card border border-border rounded-xl p-6 shadow-lg">
-        <h2 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4" id="cardLog">—</h2>
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider" id="cardLog">—</h2>
+          <button class="px-3 py-1 text-xs font-medium rounded-md bg-bg-input border border-border text-zinc-400 hover:border-accent hover:text-accent transition-colors" id="btnClearLog">
+            <span id="btnClearLogText">Temizle</span>
+          </button>
+        </div>
         <div class="log-area bg-[#080809] border border-border rounded-lg p-4 font-mono text-xs h-72 overflow-y-auto text-zinc-500 leading-relaxed" id="logArea"></div>
       </div>
     </div>
@@ -315,59 +1004,33 @@
         langSelectSub: 'Uygulama dilini seçin / Choose application language',
         btnLangTR: 'Türkçe',
         btnLangEN: 'English',
-        brandSubtitle: 'Web Trafik Simülasyon Botu',
+        brandSubtitle: 'Web Trafik Simülasyon Botu v2.3.0',
         statusWaiting: 'Beklemede',
         statusRunning: 'Çalışıyor',
         statusIdle: '—',
+        // Tabs
+        tabBasicText: 'Temel Ayarlar',
+        tabTrafficText: 'Trafik Simülasyonu',
+        tabSeoText: 'SEO & Analytics',
+        tabGscText: 'GSC & Advanced',
+        tabAdvancedText: 'Gelişmiş',
+        tabProxyText: 'Proxy',
+        // Basic
         cardParams: 'Test Parametreleri',
         labelDomain: 'Hedef Domain',
-        placeholderDomain: 'example.com',
         labelGtag: 'GA4 / GTAG Kodu',
-        placeholderGtag: 'G-XXXXXXXXXXX',
         labelMaxPages: 'Max Sayfa',
-        placeholderMaxPages: '5',
         labelDuration: 'Süre (dakika)',
-        placeholderDuration: '60',
         labelHpm: 'İstek / Dakika',
-        placeholderHpm: '35',
         labelMaxConcurrent: 'Paralel Tarayıcı',
-        placeholderMaxConcurrent: '10',
-        titleMaxConcurrent: 'Paralel tarayıcı sayısı',
         labelOutputDir: 'Rapor Klasörü',
-        placeholderOutputDir: './reports',
         labelExportFormat: 'Rapor Formatı',
         labelScrollStrategy: 'Scroll Stili',
-        labelKeywords: 'Anahtar Kelimeler (virgül veya satır ile ayırın)',
-        placeholderKeywords: 'anahtar kelime, uzun kuyruk, marka adı',
         labelCanvasFp: 'Canvas Fingerprint',
         labelScrollEvent: 'Scroll Event (GA4)',
         labelUseSitemap: 'Sitemap.xml kullan',
+        labelAntiDetect: 'Anti-Detect Modu',
         labelSitemapHomepageWeight: 'Anasayfa ağırlığı (%)',
-        placeholderSitemapWeight: '60',
-        titleSitemapWeight: 'Anasayfaya gidecek istek yüzdesi',
-        labelProxyHost: 'Proxy Host',
-        placeholderProxyHost: 'proxy.example.com',
-        labelProxyPort: 'Proxy Port',
-        placeholderProxyPort: '3120',
-        labelProxyUser: 'Proxy Kullanıcı',
-        labelProxyPass: 'Proxy Şifre',
-        btnStart: 'Başlat',
-        btnStop: 'Durdur',
-        cardMetrics: 'Canlı Metrikler',
-        metricTotal: 'Toplam İstek',
-        metricSuccess: 'Başarılı',
-        metricFailed: 'Hatalı',
-        metricAvg: 'Ort. Yanıt',
-        metricLiveProxy: 'Canlı Proxy',
-        proxySettingsTitle: 'Proxy Ayarları',
-        publicProxyDesc: 'Açık proxy listelerinden otomatik çeker ve test eder',
-        cardLog: 'Log',
-        errorDomain: 'Hata: Hedef domain girin.',
-        errorStart: 'Başlatma hatası',
-        errorStop: 'Durdurma hatası',
-        logStarted: 'Simülasyon başlatıldı.',
-        logStopped: 'Simülasyon durduruldu.',
-        logConfigError: 'Config yüklenemedi',
         optExportBoth: 'CSV + JSON + HTML',
         optExportCsv: 'CSV',
         optExportJson: 'JSON',
@@ -375,18 +1038,162 @@
         optScrollGradual: 'Normal (Kademeli)',
         optScrollFast: 'Hızlı',
         optScrollReader: 'Okuyucu (Yavaş)',
-        cardPublicProxy: 'Public Proxy (Dahili Bulucu)',
+        // Traffic
+        cardTrafficSim: 'Trafik Simülasyonu',
+        labelDeviceType: 'Cihaz Tipi',
+        optDeviceMixed: 'Karışık (Tümü)',
+        optDeviceDesktop: 'Masaüstü',
+        optDeviceMobile: 'Mobil',
+        optDeviceTablet: 'Tablet',
+        labelDeviceBrands: 'Cihaz Markaları',
+        deviceBrandsHint: 'Boş bırakılırsa tüm markalar kullanılır',
+        labelMinPageDuration: 'Min Sayfa Süresi (sn)',
+        labelMaxPageDuration: 'Max Sayfa Süresi (sn)',
+        labelMinScrollPercent: 'Min Scroll (%)',
+        labelMaxScrollPercent: 'Max Scroll (%)',
+        labelClickProbability: 'Tıklama Olasılığı (%)',
+        labelSimulateMouseMove: 'Mouse Hareketi',
+        labelSimulateKeyboard: 'Klavye Simülasyonu',
+        labelSimulateClicks: 'Tıklama Simülasyonu',
+        labelSimulateFocus: 'Focus/Blur',
+        // Session Depth
+        sectionSessionDepth: 'Session Depth Simülasyonu',
+        labelSessionMinPages: 'Min Sayfa/Oturum',
+        labelSessionMaxPages: 'Max Sayfa/Oturum',
+        labelEnableSessionDepth: 'Session Depth Aktif',
+        // Bounce Rate
+        sectionBounceRate: 'Bounce Rate Kontrolü',
+        labelTargetBounceRate: 'Hedef Bounce Rate (%)',
+        labelEnableBounceControl: 'Bounce Kontrolü Aktif',
+        bounceRateHint: 'Düşük bounce rate için ziyaretçiler birden fazla sayfa gezecek',
+        // SEO
+        cardSeoAnalytics: 'SEO & Analytics',
+        sectionReferrer: 'Referrer Ayarları',
+        labelReferrerKeyword: 'Referrer Anahtar Kelime',
+        referrerKeywordHint: 'Bu kelime ile Google\'dan gelmiş gibi görünür',
+        labelReferrerEnabled: 'Aktif',
+        labelReferrerSource: 'Referrer Kaynağı',
+        sectionKeywords: 'Anahtar Kelimeler',
+        labelKeywords: 'Anahtar Kelimeler (virgül veya satır ile ayırın)',
+        sectionCustomDimensions: 'Custom Dimensions & Metrics (GA4)',
+        labelCustomDimensions: 'Custom Dimensions (JSON)',
+        labelCustomMetrics: 'Custom Metrics (JSON)',
+        labelEnableCustomDimensions: 'Custom Dimensions/Metrics Gönder',
+        sectionAnalyticsEvents: 'Analytics Eventleri',
+        labelSendPageView: 'Page View',
+        labelSendSessionStart: 'Session Start',
+        labelSendUserEngagement: 'User Engagement',
+        labelSendFirstVisit: 'First Visit',
+        sectionGeoLocation: 'Coğrafi Konum',
+        labelGeoCountry: 'Ülke',
+        labelGeoTimezone: 'Saat Dilimi',
+        labelGeoLanguage: 'Dil',
+        // GSC & Advanced
+        cardGscAdvanced: 'Google Search Console & Gelişmiş Analytics',
+        sectionGscIntegration: 'Google Search Console Entegrasyonu',
+        labelGscPropertyUrl: 'GSC Property URL',
+        labelGscApiKey: 'GSC API Key (JSON)',
+        labelEnableGscIntegration: 'GSC Entegrasyonu Aktif',
+        labelUseGscQueries: 'GSC Sorgularını Kullan',
+        btnFetchGscQueriesText: 'Sorguları Çek',
+        gscIntegrationHint: 'GSC API ile gerçek arama sorgularını çekerek organik trafik simüle edin',
+        labelGscQueries: 'Çekilen GSC Sorguları',
+        // Returning Visitor
+        sectionReturningVisitor: 'Returning Visitor Simülasyonu',
+        labelReturningVisitorRate: 'Returning Visitor Oranı (%)',
+        labelReturningVisitorDays: 'Tekrar Ziyaret Aralığı (gün)',
+        labelEnableReturningVisitor: 'Returning Visitor Aktif',
+        returningVisitorHint: 'Aynı client_id ile tekrar ziyaret simüle ederek returning visitor oranını artırın',
+        // Exit Page
+        sectionExitPage: 'Exit Page Kontrolü',
+        labelExitPages: 'Çıkış Sayfaları (URL pattern, satır başına bir tane)',
+        labelEnableExitPageControl: 'Exit Page Kontrolü Aktif',
+        exitPageHint: 'Belirtilen sayfalarda oturum sonlandırılır, diğer sayfalarda devam edilir',
+        // Browser Profile
+        sectionBrowserProfile: 'Browser Profile Persistence',
+        labelBrowserProfilePath: 'Profil Kayıt Dizini',
+        labelMaxBrowserProfiles: 'Max Profil Sayısı',
+        labelEnableBrowserProfile: 'Profil Persistence Aktif',
+        labelPersistCookies: 'Cookie\'leri Kaydet',
+        labelPersistLocalStorage: 'LocalStorage Kaydet',
+        browserProfileHint: 'Tarayıcı profillerini kaydederek returning visitor simülasyonunu güçlendirin',
+        // TLS Fingerprint
+        sectionTlsFingerprint: 'TLS Fingerprint Randomization',
+        labelTlsFingerprintMode: 'Fingerprint Modu',
+        labelEnableJa3Randomization: 'JA3 Randomization',
+        labelEnableJa4Randomization: 'JA4 Randomization',
+        tlsFingerprintHint: 'JA3/JA4 TLS fingerprint\'lerini randomize ederek bot tespitini zorlaştırın',
+        // Advanced
+        cardAdvanced: 'Gelişmiş Ayarlar',
+        sectionStealth: 'Stealth & Anti-Detect',
+        labelStealthWebdriver: 'Webdriver Gizle',
+        labelStealthChrome: 'Chrome Gizle',
+        labelStealthPlugins: 'Plugin Spoof',
+        labelStealthWebGL: 'WebGL Noise',
+        labelStealthAudio: 'Audio Noise',
+        labelStealthCanvas: 'Canvas Noise',
+        labelStealthTimezone: 'Timezone Spoof',
+        labelStealthLanguage: 'Language Spoof',
+        sectionPerformance: 'Performans',
+        labelVisitTimeout: 'Ziyaret Timeout (sn)',
+        labelPageLoadWait: 'Sayfa Yükleme Bekleme (ms)',
+        labelRetryCount: 'Hata Tekrar Sayısı',
+        sectionResourceBlocking: 'Kaynak Engelleme',
+        labelBlockImages: 'Görselleri Engelle',
+        labelBlockStyles: 'CSS Engelle',
+        labelBlockFonts: 'Fontları Engelle',
+        labelBlockMedia: 'Medyayı Engelle',
+        // Proxy
+        proxySettingsTitle: 'Proxy Ayarları',
+        sectionPrivateProxy: 'Özel Proxy Listesi',
+        btnAddProxyText: 'Proxy Ekle',
+        privateProxyHint: 'Birden fazla özel proxy ekleyerek rotasyon yapabilirsiniz',
+        sectionProxyRotation: 'Proxy Rotasyon Ayarları',
+        labelProxyRotationMode: 'Rotasyon Modu',
+        labelProxyRotationInterval: 'Rotasyon Aralığı (istek)',
+        labelEnableProxyRotation: 'Proxy Rotasyonu Aktif',
+        sectionPublicProxy: 'Public Proxy',
         labelUsePublicProxy: 'Public proxy kullan',
         labelCheckerWorkers: 'Checker Workers',
-        placeholderCheckerWorkers: '25',
-        titleCheckerWorkers: 'Aynı anda test edilen proxy sayısı',
         btnProxyFetch: 'Proxy Çek & Test Et',
+        btnProxyExportText: 'Dışa Aktar',
+        publicProxyDesc: 'Açık proxy listelerinden otomatik çeker ve test eder',
+        proxyStatLiveLabel: 'Canlı',
+        proxyStatQueueLabel: 'Kuyrukta',
+        proxyStatAddedLabel: 'Eklenen',
+        proxyStatRemovedLabel: 'Silinen',
+        // Actions
+        btnStart: 'Başlat',
+        btnStop: 'Durdur',
+        btnClearLogText: 'Temizle',
+        // Metrics
+        cardMetrics: 'Canlı Metrikler',
+        metricTotal: 'Toplam İstek',
+        metricSuccess: 'Başarılı',
+        metricFailed: 'Hatalı',
+        metricAvg: 'Ort. Yanıt',
+        metricLiveProxy: 'Canlı Proxy',
+        metricLabelQuality: 'Kalite',
+        metricLabelBounceRate: 'Bounce',
+        cardLog: 'Log',
+        // Messages
+        errorDomain: 'Hata: Hedef domain girin.',
+        errorStart: 'Başlatma hatası',
+        errorStop: 'Durdurma hatası',
+        logStarted: 'Simülasyon başlatıldı.',
+        logStopped: 'Simülasyon durduruldu.',
+        logConfigError: 'Config yüklenemedi',
         unitMs: ' ms',
         logProxyFetchStarted: 'Proxy çekme başlatıldı.',
         logProxyFetchError: 'Proxy çekme hatası: ',
         logGitHubAdded: 'Havuza {{n}} proxy eklendi.',
         proxyChecking: 'Test ediliyor...',
         proxyCheckComplete: 'Proxy testi tamamlandı.',
+        proxyTestSuccess: 'Proxy testi başarılı',
+        proxyTestFailed: 'Proxy testi başarısız',
+        gscFetchStarted: 'GSC sorguları çekiliyor...',
+        gscFetchSuccess: '{{n}} sorgu çekildi.',
+        gscFetchError: 'GSC sorgu çekme hatası: ',
       },
       en: {
         titleApp: 'Eros - Hit Bot',
@@ -396,59 +1203,33 @@
         langSelectSub: 'Choose application language',
         btnLangTR: 'Türkçe',
         btnLangEN: 'English',
-        brandSubtitle: 'Web Traffic Simulation Bot',
+        brandSubtitle: 'Web Traffic Simulation Bot v2.3.0',
         statusWaiting: 'Waiting',
         statusRunning: 'Running',
         statusIdle: '—',
+        // Tabs
+        tabBasicText: 'Basic Settings',
+        tabTrafficText: 'Traffic Simulation',
+        tabSeoText: 'SEO & Analytics',
+        tabGscText: 'GSC & Advanced',
+        tabAdvancedText: 'Advanced',
+        tabProxyText: 'Proxy',
+        // Basic
         cardParams: 'Test Parameters',
         labelDomain: 'Target Domain',
-        placeholderDomain: 'example.com',
         labelGtag: 'GA4 / GTAG Code',
-        placeholderGtag: 'G-XXXXXXXXXXX',
         labelMaxPages: 'Max Pages',
-        placeholderMaxPages: '5',
         labelDuration: 'Duration (minutes)',
-        placeholderDuration: '60',
         labelHpm: 'Requests / Minute',
-        placeholderHpm: '35',
         labelMaxConcurrent: 'Parallel Browsers',
-        placeholderMaxConcurrent: '10',
-        titleMaxConcurrent: 'Number of parallel browsers',
         labelOutputDir: 'Report Folder',
-        placeholderOutputDir: './reports',
         labelExportFormat: 'Report Format',
         labelScrollStrategy: 'Scroll Style',
-        labelKeywords: 'Keywords (comma or newline separated)',
-        placeholderKeywords: 'keyword, long tail, brand name',
         labelCanvasFp: 'Canvas Fingerprint',
         labelScrollEvent: 'Scroll Event (GA4)',
         labelUseSitemap: 'Use sitemap.xml',
+        labelAntiDetect: 'Anti-Detect Mode',
         labelSitemapHomepageWeight: 'Homepage weight (%)',
-        placeholderSitemapWeight: '60',
-        titleSitemapWeight: 'Percentage of requests to homepage',
-        labelProxyHost: 'Proxy Host',
-        placeholderProxyHost: 'proxy.example.com',
-        labelProxyPort: 'Proxy Port',
-        placeholderProxyPort: '3120',
-        labelProxyUser: 'Proxy User',
-        labelProxyPass: 'Proxy Password',
-        btnStart: 'Start',
-        btnStop: 'Stop',
-        cardMetrics: 'Live Metrics',
-        metricTotal: 'Total Requests',
-        metricSuccess: 'Successful',
-        metricFailed: 'Failed',
-        metricAvg: 'Avg Response',
-        metricLiveProxy: 'Live Proxy',
-        proxySettingsTitle: 'Proxy Settings',
-        publicProxyDesc: 'Automatically fetches and tests from public proxy lists',
-        cardLog: 'Log',
-        errorDomain: 'Error: Enter target domain.',
-        errorStart: 'Start error',
-        errorStop: 'Stop error',
-        logStarted: 'Simulation started.',
-        logStopped: 'Simulation stopped.',
-        logConfigError: 'Failed to load config',
         optExportBoth: 'CSV + JSON + HTML',
         optExportCsv: 'CSV',
         optExportJson: 'JSON',
@@ -456,18 +1237,162 @@
         optScrollGradual: 'Normal (Gradual)',
         optScrollFast: 'Fast',
         optScrollReader: 'Reader (Slow)',
-        cardPublicProxy: 'Public Proxy (Built-in Finder)',
+        // Traffic
+        cardTrafficSim: 'Traffic Simulation',
+        labelDeviceType: 'Device Type',
+        optDeviceMixed: 'Mixed (All)',
+        optDeviceDesktop: 'Desktop',
+        optDeviceMobile: 'Mobile',
+        optDeviceTablet: 'Tablet',
+        labelDeviceBrands: 'Device Brands',
+        deviceBrandsHint: 'Leave empty to use all brands',
+        labelMinPageDuration: 'Min Page Duration (sec)',
+        labelMaxPageDuration: 'Max Page Duration (sec)',
+        labelMinScrollPercent: 'Min Scroll (%)',
+        labelMaxScrollPercent: 'Max Scroll (%)',
+        labelClickProbability: 'Click Probability (%)',
+        labelSimulateMouseMove: 'Mouse Movement',
+        labelSimulateKeyboard: 'Keyboard Simulation',
+        labelSimulateClicks: 'Click Simulation',
+        labelSimulateFocus: 'Focus/Blur',
+        // Session Depth
+        sectionSessionDepth: 'Session Depth Simulation',
+        labelSessionMinPages: 'Min Pages/Session',
+        labelSessionMaxPages: 'Max Pages/Session',
+        labelEnableSessionDepth: 'Session Depth Enabled',
+        // Bounce Rate
+        sectionBounceRate: 'Bounce Rate Control',
+        labelTargetBounceRate: 'Target Bounce Rate (%)',
+        labelEnableBounceControl: 'Bounce Control Enabled',
+        bounceRateHint: 'Visitors will browse multiple pages for lower bounce rate',
+        // SEO
+        cardSeoAnalytics: 'SEO & Analytics',
+        sectionReferrer: 'Referrer Settings',
+        labelReferrerKeyword: 'Referrer Keyword',
+        referrerKeywordHint: 'Appears as if coming from Google with this keyword',
+        labelReferrerEnabled: 'Enabled',
+        labelReferrerSource: 'Referrer Source',
+        sectionKeywords: 'Keywords',
+        labelKeywords: 'Keywords (comma or newline separated)',
+        sectionCustomDimensions: 'Custom Dimensions & Metrics (GA4)',
+        labelCustomDimensions: 'Custom Dimensions (JSON)',
+        labelCustomMetrics: 'Custom Metrics (JSON)',
+        labelEnableCustomDimensions: 'Send Custom Dimensions/Metrics',
+        sectionAnalyticsEvents: 'Analytics Events',
+        labelSendPageView: 'Page View',
+        labelSendSessionStart: 'Session Start',
+        labelSendUserEngagement: 'User Engagement',
+        labelSendFirstVisit: 'First Visit',
+        sectionGeoLocation: 'Geo Location',
+        labelGeoCountry: 'Country',
+        labelGeoTimezone: 'Timezone',
+        labelGeoLanguage: 'Language',
+        // GSC & Advanced
+        cardGscAdvanced: 'Google Search Console & Advanced Analytics',
+        sectionGscIntegration: 'Google Search Console Integration',
+        labelGscPropertyUrl: 'GSC Property URL',
+        labelGscApiKey: 'GSC API Key (JSON)',
+        labelEnableGscIntegration: 'GSC Integration Enabled',
+        labelUseGscQueries: 'Use GSC Queries',
+        btnFetchGscQueriesText: 'Fetch Queries',
+        gscIntegrationHint: 'Simulate organic traffic by fetching real search queries via GSC API',
+        labelGscQueries: 'Fetched GSC Queries',
+        // Returning Visitor
+        sectionReturningVisitor: 'Returning Visitor Simulation',
+        labelReturningVisitorRate: 'Returning Visitor Rate (%)',
+        labelReturningVisitorDays: 'Return Visit Interval (days)',
+        labelEnableReturningVisitor: 'Returning Visitor Enabled',
+        returningVisitorHint: 'Increase returning visitor rate by simulating repeat visits with same client_id',
+        // Exit Page
+        sectionExitPage: 'Exit Page Control',
+        labelExitPages: 'Exit Pages (URL pattern, one per line)',
+        labelEnableExitPageControl: 'Exit Page Control Enabled',
+        exitPageHint: 'Session ends on specified pages, continues on others',
+        // Browser Profile
+        sectionBrowserProfile: 'Browser Profile Persistence',
+        labelBrowserProfilePath: 'Profile Storage Directory',
+        labelMaxBrowserProfiles: 'Max Profile Count',
+        labelEnableBrowserProfile: 'Profile Persistence Enabled',
+        labelPersistCookies: 'Save Cookies',
+        labelPersistLocalStorage: 'Save LocalStorage',
+        browserProfileHint: 'Strengthen returning visitor simulation by saving browser profiles',
+        // TLS Fingerprint
+        sectionTlsFingerprint: 'TLS Fingerprint Randomization',
+        labelTlsFingerprintMode: 'Fingerprint Mode',
+        labelEnableJa3Randomization: 'JA3 Randomization',
+        labelEnableJa4Randomization: 'JA4 Randomization',
+        tlsFingerprintHint: 'Make bot detection harder by randomizing JA3/JA4 TLS fingerprints',
+        // Advanced
+        cardAdvanced: 'Advanced Settings',
+        sectionStealth: 'Stealth & Anti-Detect',
+        labelStealthWebdriver: 'Hide Webdriver',
+        labelStealthChrome: 'Hide Chrome',
+        labelStealthPlugins: 'Plugin Spoof',
+        labelStealthWebGL: 'WebGL Noise',
+        labelStealthAudio: 'Audio Noise',
+        labelStealthCanvas: 'Canvas Noise',
+        labelStealthTimezone: 'Timezone Spoof',
+        labelStealthLanguage: 'Language Spoof',
+        sectionPerformance: 'Performance',
+        labelVisitTimeout: 'Visit Timeout (sec)',
+        labelPageLoadWait: 'Page Load Wait (ms)',
+        labelRetryCount: 'Retry Count',
+        sectionResourceBlocking: 'Resource Blocking',
+        labelBlockImages: 'Block Images',
+        labelBlockStyles: 'Block CSS',
+        labelBlockFonts: 'Block Fonts',
+        labelBlockMedia: 'Block Media',
+        // Proxy
+        proxySettingsTitle: 'Proxy Settings',
+        sectionPrivateProxy: 'Private Proxy List',
+        btnAddProxyText: 'Add Proxy',
+        privateProxyHint: 'Add multiple private proxies for rotation',
+        sectionProxyRotation: 'Proxy Rotation Settings',
+        labelProxyRotationMode: 'Rotation Mode',
+        labelProxyRotationInterval: 'Rotation Interval (requests)',
+        labelEnableProxyRotation: 'Proxy Rotation Enabled',
+        sectionPublicProxy: 'Public Proxy',
         labelUsePublicProxy: 'Use public proxy',
         labelCheckerWorkers: 'Checker Workers',
-        placeholderCheckerWorkers: '25',
-        titleCheckerWorkers: 'Number of proxies tested at once',
         btnProxyFetch: 'Fetch & Test Proxies',
+        btnProxyExportText: 'Export',
+        publicProxyDesc: 'Automatically fetches and tests from public proxy lists',
+        proxyStatLiveLabel: 'Live',
+        proxyStatQueueLabel: 'Queue',
+        proxyStatAddedLabel: 'Added',
+        proxyStatRemovedLabel: 'Removed',
+        // Actions
+        btnStart: 'Start',
+        btnStop: 'Stop',
+        btnClearLogText: 'Clear',
+        // Metrics
+        cardMetrics: 'Live Metrics',
+        metricTotal: 'Total Requests',
+        metricSuccess: 'Successful',
+        metricFailed: 'Failed',
+        metricAvg: 'Avg Response',
+        metricLiveProxy: 'Live Proxy',
+        metricLabelQuality: 'Quality',
+        metricLabelBounceRate: 'Bounce',
+        cardLog: 'Log',
+        // Messages
+        errorDomain: 'Error: Enter target domain.',
+        errorStart: 'Start error',
+        errorStop: 'Stop error',
+        logStarted: 'Simulation started.',
+        logStopped: 'Simulation stopped.',
+        logConfigError: 'Failed to load config',
         unitMs: ' ms',
         logProxyFetchStarted: 'Proxy fetch started.',
         logProxyFetchError: 'Proxy fetch error: ',
         logGitHubAdded: 'Added {{n}} proxies.',
         proxyChecking: 'Testing...',
         proxyCheckComplete: 'Proxy test completed.',
+        proxyTestSuccess: 'Proxy test successful',
+        proxyTestFailed: 'Proxy test failed',
+        gscFetchStarted: 'Fetching GSC queries...',
+        gscFetchSuccess: 'Fetched {{n}} queries.',
+        gscFetchError: 'GSC query fetch error: ',
       }
     };
 
@@ -475,6 +1400,8 @@
     let statusInterval = null;
     let eventSource = null;
     let wsConn = null;
+    let proxyPollInterval = null;
+    let proxyIndex = 0;
 
     const langModal = document.getElementById('langModal');
     const mainApp = document.getElementById('mainApp');
@@ -501,68 +1428,45 @@
 
     function applyTranslations() {
       const L = t[lang] || t.tr;
-      document.getElementById('brandSubtitle').textContent = L.brandSubtitle;
-      document.getElementById('statusText').textContent = L.statusWaiting;
-      document.getElementById('cardParams').textContent = L.cardParams;
-      document.getElementById('labelDomain').textContent = L.labelDomain;
-      document.getElementById('labelMaxPages').textContent = L.labelMaxPages;
-      document.getElementById('labelDuration').textContent = L.labelDuration;
-      document.getElementById('labelHpm').textContent = L.labelHpm;
-      document.getElementById('labelProxyHost').textContent = L.labelProxyHost;
-      document.getElementById('labelProxyPort').textContent = L.labelProxyPort;
-      document.getElementById('labelProxyUser').textContent = L.labelProxyUser;
-      document.getElementById('labelProxyPass').textContent = L.labelProxyPass;
-      document.getElementById('labelGtag').textContent = L.labelGtag;
-      document.getElementById('labelMaxConcurrent').textContent = L.labelMaxConcurrent;
-      document.getElementById('labelOutputDir').textContent = L.labelOutputDir;
-      document.getElementById('labelExportFormat').textContent = L.labelExportFormat;
-      document.getElementById('labelScrollStrategy').textContent = L.labelScrollStrategy;
-      document.getElementById('labelKeywords').textContent = L.labelKeywords;
-      document.getElementById('labelCanvasFp').textContent = L.labelCanvasFp;
-      document.getElementById('labelScrollEvent').textContent = L.labelScrollEvent;
-      document.getElementById('labelUseSitemap').textContent = L.labelUseSitemap;
-      document.getElementById('labelSitemapHomepageWeight').textContent = L.labelSitemapHomepageWeight;
-      document.getElementById('btnStart').textContent = L.btnStart;
-      document.getElementById('btnStop').textContent = L.btnStop;
-      document.getElementById('cardMetrics').textContent = L.cardMetrics;
-      document.getElementById('metricLabelTotal').textContent = L.metricTotal;
-      document.getElementById('metricLabelSuccess').textContent = L.metricSuccess;
-      document.getElementById('metricLabelFailed').textContent = L.metricFailed;
-      document.getElementById('metricLabelAvg').textContent = L.metricAvg;
-      document.getElementById('metricLabelLiveProxy').textContent = L.metricLiveProxy;
-      document.getElementById('cardLog').textContent = L.cardLog;
-      document.getElementById('proxySettingsTitle').textContent = L.proxySettingsTitle;
-      document.getElementById('labelUsePublicProxy').textContent = L.labelUsePublicProxy;
-      document.getElementById('labelCheckerWorkers').textContent = L.labelCheckerWorkers;
-      document.getElementById('btnProxyFetch').textContent = L.btnProxyFetch;
-      document.getElementById('publicProxyDesc').textContent = L.publicProxyDesc;
+      
+      // Title & Header
       document.querySelector('title').textContent = L.titleApp;
       document.documentElement.lang = lang === 'en' ? 'en' : 'tr';
+      document.getElementById('brandTitle').textContent = L.brandTitle;
+      document.getElementById('brandSubtitle').textContent = L.brandSubtitle;
+      document.getElementById('statusText').textContent = L.statusWaiting;
+      document.querySelectorAll('img[alt]').forEach(img => img.alt = L.altLogo || '');
+      
+      // Modal
       document.getElementById('langModalTitle').textContent = L.langSelectTitle;
       document.getElementById('langModalSub').textContent = L.langSelectSub;
       document.getElementById('btnLangTR').textContent = L.btnLangTR;
       document.getElementById('btnLangEN').textContent = L.btnLangEN;
-      document.getElementById('brandTitle').textContent = L.brandTitle;
-      document.querySelectorAll('img[alt]').forEach(img => img.alt = L.altLogo || '');
       
-      // Placeholders
-      document.getElementById('domain').placeholder = L.placeholderDomain || '';
-      document.getElementById('gtagId').placeholder = L.placeholderGtag || '';
-      document.getElementById('maxPages').placeholder = L.placeholderMaxPages || '';
-      document.getElementById('duration').placeholder = L.placeholderDuration || '';
-      document.getElementById('hpm').placeholder = L.placeholderHpm || '';
-      document.getElementById('maxConcurrent').placeholder = L.placeholderMaxConcurrent || '';
-      document.getElementById('maxConcurrent').title = L.titleMaxConcurrent || '';
-      document.getElementById('outputDir').placeholder = L.placeholderOutputDir || '';
-      document.getElementById('keywords').placeholder = L.placeholderKeywords || '';
-      document.getElementById('sitemapHomepageWeight').placeholder = L.placeholderSitemapWeight || '';
-      document.getElementById('sitemapHomepageWeight').title = L.titleSitemapWeight || '';
-      document.getElementById('proxyHost').placeholder = L.placeholderProxyHost || '';
-      document.getElementById('proxyPort').placeholder = L.placeholderProxyPort || '';
-      document.getElementById('checkerWorkers').placeholder = L.placeholderCheckerWorkers || '';
-      document.getElementById('checkerWorkers').title = L.titleCheckerWorkers || '';
+      // Tabs
+      document.getElementById('tabBasicText').textContent = L.tabBasicText;
+      document.getElementById('tabTrafficText').textContent = L.tabTrafficText;
+      document.getElementById('tabSeoText').textContent = L.tabSeoText;
+      document.getElementById('tabGscText').textContent = L.tabGscText;
+      document.getElementById('tabAdvancedText').textContent = L.tabAdvancedText;
+      document.getElementById('tabProxyText').textContent = L.tabProxyText;
       
-      // Select options
+      // Basic Settings
+      document.getElementById('cardParams').textContent = L.cardParams;
+      document.getElementById('labelDomain').textContent = L.labelDomain;
+      document.getElementById('labelGtag').textContent = L.labelGtag;
+      document.getElementById('labelMaxPages').textContent = L.labelMaxPages;
+      document.getElementById('labelDuration').textContent = L.labelDuration;
+      document.getElementById('labelHpm').textContent = L.labelHpm;
+      document.getElementById('labelMaxConcurrent').textContent = L.labelMaxConcurrent;
+      document.getElementById('labelOutputDir').textContent = L.labelOutputDir;
+      document.getElementById('labelExportFormat').textContent = L.labelExportFormat;
+      document.getElementById('labelScrollStrategy').textContent = L.labelScrollStrategy;
+      document.getElementById('labelCanvasFp').textContent = L.labelCanvasFp;
+      document.getElementById('labelScrollEvent').textContent = L.labelScrollEvent;
+      document.getElementById('labelUseSitemap').textContent = L.labelUseSitemap;
+      document.getElementById('labelAntiDetect').textContent = L.labelAntiDetect;
+      document.getElementById('labelSitemapHomepageWeight').textContent = L.labelSitemapHomepageWeight;
       document.getElementById('optExportBoth').textContent = L.optExportBoth;
       document.getElementById('optExportCsv').textContent = L.optExportCsv;
       document.getElementById('optExportJson').textContent = L.optExportJson;
@@ -570,7 +1474,157 @@
       document.getElementById('optScrollGradual').textContent = L.optScrollGradual;
       document.getElementById('optScrollFast').textContent = L.optScrollFast;
       document.getElementById('optScrollReader').textContent = L.optScrollReader;
+      
+      // Traffic Simulation
+      document.getElementById('cardTrafficSim').textContent = L.cardTrafficSim;
+      document.getElementById('labelDeviceType').textContent = L.labelDeviceType;
+      document.getElementById('optDeviceMixed').textContent = L.optDeviceMixed;
+      document.getElementById('optDeviceDesktop').textContent = L.optDeviceDesktop;
+      document.getElementById('optDeviceMobile').textContent = L.optDeviceMobile;
+      document.getElementById('optDeviceTablet').textContent = L.optDeviceTablet;
+      document.getElementById('labelDeviceBrands').textContent = L.labelDeviceBrands;
+      document.getElementById('deviceBrandsHint').textContent = L.deviceBrandsHint;
+      document.getElementById('labelMinPageDuration').textContent = L.labelMinPageDuration;
+      document.getElementById('labelMaxPageDuration').textContent = L.labelMaxPageDuration;
+      document.getElementById('labelMinScrollPercent').textContent = L.labelMinScrollPercent;
+      document.getElementById('labelMaxScrollPercent').textContent = L.labelMaxScrollPercent;
+      document.getElementById('labelClickProbability').textContent = L.labelClickProbability;
+      document.getElementById('labelSimulateMouseMove').textContent = L.labelSimulateMouseMove;
+      document.getElementById('labelSimulateKeyboard').textContent = L.labelSimulateKeyboard;
+      document.getElementById('labelSimulateClicks').textContent = L.labelSimulateClicks;
+      document.getElementById('labelSimulateFocus').textContent = L.labelSimulateFocus;
+      document.getElementById('sectionSessionDepth').textContent = L.sectionSessionDepth;
+      document.getElementById('labelSessionMinPages').textContent = L.labelSessionMinPages;
+      document.getElementById('labelSessionMaxPages').textContent = L.labelSessionMaxPages;
+      document.getElementById('labelEnableSessionDepth').textContent = L.labelEnableSessionDepth;
+      document.getElementById('sectionBounceRate').textContent = L.sectionBounceRate;
+      document.getElementById('labelTargetBounceRate').textContent = L.labelTargetBounceRate;
+      document.getElementById('labelEnableBounceControl').textContent = L.labelEnableBounceControl;
+      document.getElementById('bounceRateHint').textContent = L.bounceRateHint;
+      
+      // SEO & Analytics
+      document.getElementById('cardSeoAnalytics').textContent = L.cardSeoAnalytics;
+      document.getElementById('sectionReferrer').textContent = L.sectionReferrer;
+      document.getElementById('labelReferrerKeyword').textContent = L.labelReferrerKeyword;
+      document.getElementById('referrerKeywordHint').textContent = L.referrerKeywordHint;
+      document.getElementById('labelReferrerEnabled').textContent = L.labelReferrerEnabled;
+      document.getElementById('labelReferrerSource').textContent = L.labelReferrerSource;
+      document.getElementById('sectionKeywords').textContent = L.sectionKeywords;
+      document.getElementById('labelKeywords').textContent = L.labelKeywords;
+      document.getElementById('sectionCustomDimensions').textContent = L.sectionCustomDimensions;
+      document.getElementById('labelCustomDimensions').textContent = L.labelCustomDimensions;
+      document.getElementById('labelCustomMetrics').textContent = L.labelCustomMetrics;
+      document.getElementById('labelEnableCustomDimensions').textContent = L.labelEnableCustomDimensions;
+      document.getElementById('sectionAnalyticsEvents').textContent = L.sectionAnalyticsEvents;
+      document.getElementById('labelSendPageView').textContent = L.labelSendPageView;
+      document.getElementById('labelSendSessionStart').textContent = L.labelSendSessionStart;
+      document.getElementById('labelSendUserEngagement').textContent = L.labelSendUserEngagement;
+      document.getElementById('labelSendFirstVisit').textContent = L.labelSendFirstVisit;
+      document.getElementById('sectionGeoLocation').textContent = L.sectionGeoLocation;
+      document.getElementById('labelGeoCountry').textContent = L.labelGeoCountry;
+      document.getElementById('labelGeoTimezone').textContent = L.labelGeoTimezone;
+      document.getElementById('labelGeoLanguage').textContent = L.labelGeoLanguage;
+      
+      // GSC & Advanced
+      document.getElementById('cardGscAdvanced').textContent = L.cardGscAdvanced;
+      document.getElementById('sectionGscIntegration').textContent = L.sectionGscIntegration;
+      document.getElementById('labelGscPropertyUrl').textContent = L.labelGscPropertyUrl;
+      document.getElementById('labelGscApiKey').textContent = L.labelGscApiKey;
+      document.getElementById('labelEnableGscIntegration').textContent = L.labelEnableGscIntegration;
+      document.getElementById('labelUseGscQueries').textContent = L.labelUseGscQueries;
+      document.getElementById('btnFetchGscQueriesText').textContent = L.btnFetchGscQueriesText;
+      document.getElementById('gscIntegrationHint').textContent = L.gscIntegrationHint;
+      document.getElementById('labelGscQueries').textContent = L.labelGscQueries;
+      document.getElementById('sectionReturningVisitor').textContent = L.sectionReturningVisitor;
+      document.getElementById('labelReturningVisitorRate').textContent = L.labelReturningVisitorRate;
+      document.getElementById('labelReturningVisitorDays').textContent = L.labelReturningVisitorDays;
+      document.getElementById('labelEnableReturningVisitor').textContent = L.labelEnableReturningVisitor;
+      document.getElementById('returningVisitorHint').textContent = L.returningVisitorHint;
+      document.getElementById('sectionExitPage').textContent = L.sectionExitPage;
+      document.getElementById('labelExitPages').textContent = L.labelExitPages;
+      document.getElementById('labelEnableExitPageControl').textContent = L.labelEnableExitPageControl;
+      document.getElementById('exitPageHint').textContent = L.exitPageHint;
+      document.getElementById('sectionBrowserProfile').textContent = L.sectionBrowserProfile;
+      document.getElementById('labelBrowserProfilePath').textContent = L.labelBrowserProfilePath;
+      document.getElementById('labelMaxBrowserProfiles').textContent = L.labelMaxBrowserProfiles;
+      document.getElementById('labelEnableBrowserProfile').textContent = L.labelEnableBrowserProfile;
+      document.getElementById('labelPersistCookies').textContent = L.labelPersistCookies;
+      document.getElementById('labelPersistLocalStorage').textContent = L.labelPersistLocalStorage;
+      document.getElementById('browserProfileHint').textContent = L.browserProfileHint;
+      document.getElementById('sectionTlsFingerprint').textContent = L.sectionTlsFingerprint;
+      document.getElementById('labelTlsFingerprintMode').textContent = L.labelTlsFingerprintMode;
+      document.getElementById('labelEnableJa3Randomization').textContent = L.labelEnableJa3Randomization;
+      document.getElementById('labelEnableJa4Randomization').textContent = L.labelEnableJa4Randomization;
+      document.getElementById('tlsFingerprintHint').textContent = L.tlsFingerprintHint;
+      
+      // Advanced
+      document.getElementById('cardAdvanced').textContent = L.cardAdvanced;
+      document.getElementById('sectionStealth').textContent = L.sectionStealth;
+      document.getElementById('labelStealthWebdriver').textContent = L.labelStealthWebdriver;
+      document.getElementById('labelStealthChrome').textContent = L.labelStealthChrome;
+      document.getElementById('labelStealthPlugins').textContent = L.labelStealthPlugins;
+      document.getElementById('labelStealthWebGL').textContent = L.labelStealthWebGL;
+      document.getElementById('labelStealthAudio').textContent = L.labelStealthAudio;
+      document.getElementById('labelStealthCanvas').textContent = L.labelStealthCanvas;
+      document.getElementById('labelStealthTimezone').textContent = L.labelStealthTimezone;
+      document.getElementById('labelStealthLanguage').textContent = L.labelStealthLanguage;
+      document.getElementById('sectionPerformance').textContent = L.sectionPerformance;
+      document.getElementById('labelVisitTimeout').textContent = L.labelVisitTimeout;
+      document.getElementById('labelPageLoadWait').textContent = L.labelPageLoadWait;
+      document.getElementById('labelRetryCount').textContent = L.labelRetryCount;
+      document.getElementById('sectionResourceBlocking').textContent = L.sectionResourceBlocking;
+      document.getElementById('labelBlockImages').textContent = L.labelBlockImages;
+      document.getElementById('labelBlockStyles').textContent = L.labelBlockStyles;
+      document.getElementById('labelBlockFonts').textContent = L.labelBlockFonts;
+      document.getElementById('labelBlockMedia').textContent = L.labelBlockMedia;
+      
+      // Proxy
+      document.getElementById('proxySettingsTitle').textContent = L.proxySettingsTitle;
+      document.getElementById('sectionPrivateProxy').textContent = L.sectionPrivateProxy;
+      document.getElementById('btnAddProxyText').textContent = L.btnAddProxyText;
+      document.getElementById('privateProxyHint').textContent = L.privateProxyHint;
+      document.getElementById('sectionProxyRotation').textContent = L.sectionProxyRotation;
+      document.getElementById('labelProxyRotationMode').textContent = L.labelProxyRotationMode;
+      document.getElementById('labelProxyRotationInterval').textContent = L.labelProxyRotationInterval;
+      document.getElementById('labelEnableProxyRotation').textContent = L.labelEnableProxyRotation;
+      document.getElementById('sectionPublicProxy').textContent = L.sectionPublicProxy;
+      document.getElementById('labelUsePublicProxy').textContent = L.labelUsePublicProxy;
+      document.getElementById('labelCheckerWorkers').textContent = L.labelCheckerWorkers;
+      document.getElementById('btnProxyFetch').textContent = L.btnProxyFetch;
+      document.getElementById('btnProxyExportText').textContent = L.btnProxyExportText;
+      document.getElementById('publicProxyDesc').textContent = L.publicProxyDesc;
+      document.getElementById('proxyStatLiveLabel').textContent = L.proxyStatLiveLabel;
+      document.getElementById('proxyStatQueueLabel').textContent = L.proxyStatQueueLabel;
+      document.getElementById('proxyStatAddedLabel').textContent = L.proxyStatAddedLabel;
+      document.getElementById('proxyStatRemovedLabel').textContent = L.proxyStatRemovedLabel;
+      
+      // Actions
+      document.getElementById('btnStart').textContent = L.btnStart;
+      document.getElementById('btnStop').textContent = L.btnStop;
+      document.getElementById('btnClearLogText').textContent = L.btnClearLogText;
+      
+      // Metrics
+      document.getElementById('cardMetrics').textContent = L.cardMetrics;
+      document.getElementById('metricLabelTotal').textContent = L.metricTotal;
+      document.getElementById('metricLabelSuccess').textContent = L.metricSuccess;
+      document.getElementById('metricLabelFailed').textContent = L.metricFailed;
+      document.getElementById('metricLabelAvg').textContent = L.metricAvg;
+      document.getElementById('metricLabelLiveProxy').textContent = L.metricLiveProxy;
+      document.getElementById('metricLabelQuality').textContent = L.metricLabelQuality;
+      document.getElementById('metricLabelBounceRate').textContent = L.metricLabelBounceRate;
+      document.getElementById('cardLog').textContent = L.cardLog;
     }
+
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+        document.getElementById('tabContent' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.remove('hidden');
+      });
+    });
 
     document.getElementById('btnLangTR').addEventListener('click', () => setLang('tr'));
     document.getElementById('btnLangEN').addEventListener('click', () => setLang('en'));
@@ -615,10 +1669,6 @@
     const duration = document.getElementById('duration');
     const hpm = document.getElementById('hpm');
     const gtagId = document.getElementById('gtagId');
-    const proxyHost = document.getElementById('proxyHost');
-    const proxyPort = document.getElementById('proxyPort');
-    const proxyUser = document.getElementById('proxyUser');
-    const proxyPass = document.getElementById('proxyPass');
     const maxConcurrent = document.getElementById('maxConcurrent');
     const outputDir = document.getElementById('outputDir');
     const exportFormat = document.getElementById('exportFormat');
@@ -630,6 +1680,156 @@
     const sitemapHomepageWeight = document.getElementById('sitemapHomepageWeight');
     const usePublicProxy = document.getElementById('usePublicProxy');
     const checkerWorkers = document.getElementById('checkerWorkers');
+    const deviceType = document.getElementById('deviceType');
+    const referrerKeyword = document.getElementById('referrerKeyword');
+    const referrerEnabled = document.getElementById('referrerEnabled');
+    
+    // Device brands checkboxes helper
+    function getSelectedBrands() {
+      const checkboxes = document.querySelectorAll('.device-brand-checkbox:checked');
+      return Array.from(checkboxes).map(cb => cb.value);
+    }
+    
+    function setSelectedBrands(brands) {
+      document.querySelectorAll('.device-brand-checkbox').forEach(cb => {
+        cb.checked = brands && brands.includes(cb.value);
+      });
+    }
+    
+    // Multi-proxy management
+    function getPrivateProxies() {
+      const proxies = [];
+      document.querySelectorAll('#privateProxyList .proxy-item').forEach(item => {
+        const host = item.querySelector('.proxy-host').value.trim();
+        const port = parseInt(item.querySelector('.proxy-port').value) || 0;
+        const user = item.querySelector('.proxy-user').value.trim();
+        const pass = item.querySelector('.proxy-pass').value;
+        if (host && port) {
+          proxies.push({ host, port, user, pass });
+        }
+      });
+      return proxies;
+    }
+    
+    function setPrivateProxies(proxies) {
+      const container = document.getElementById('privateProxyList');
+      container.innerHTML = '';
+      proxyIndex = 0;
+      
+      if (!proxies || proxies.length === 0) {
+        addProxyItem();
+        return;
+      }
+      
+      proxies.forEach(p => {
+        addProxyItem(p.host, p.port, p.user, p.pass);
+      });
+      updateRemoveButtons();
+    }
+    
+    function addProxyItem(host = '', port = '', user = '', pass = '') {
+      const container = document.getElementById('privateProxyList');
+      const idx = proxyIndex++;
+      
+      const item = document.createElement('div');
+      item.className = 'proxy-item grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 p-3 bg-bg-input/50 rounded-lg border border-border/50';
+      item.dataset.proxyIndex = idx;
+      
+      item.innerHTML = `
+        <div class="space-y-1">
+          <label class="block text-xs font-medium text-zinc-500">Host</label>
+          <input type="text" class="proxy-host w-full bg-bg-input border border-border rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-accent transition-colors placeholder:text-zinc-600" placeholder="proxy.example.com" value="${host}">
+        </div>
+        <div class="space-y-1">
+          <label class="block text-xs font-medium text-zinc-500">Port</label>
+          <input type="number" class="proxy-port w-full bg-bg-input border border-border rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-accent transition-colors placeholder:text-zinc-600" placeholder="3120" min="1" max="65535" value="${port}">
+        </div>
+        <div class="space-y-1">
+          <label class="block text-xs font-medium text-zinc-500">Kullanıcı</label>
+          <input type="text" class="proxy-user w-full bg-bg-input border border-border rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-accent transition-colors placeholder:text-zinc-600" placeholder="username" value="${user}">
+        </div>
+        <div class="space-y-1">
+          <label class="block text-xs font-medium text-zinc-500">Şifre</label>
+          <input type="password" class="proxy-pass w-full bg-bg-input border border-border rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-accent transition-colors placeholder:text-zinc-600" placeholder="password" value="${pass}">
+        </div>
+        <div class="flex items-end gap-2">
+          <button class="btn-remove-proxy px-3 py-2 bg-error/20 hover:bg-error/30 text-error font-medium rounded-lg border border-error/30 transition-all duration-200 text-sm" type="button">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+          </button>
+          <button class="btn-test-proxy px-3 py-2 bg-info/20 hover:bg-info/30 text-info font-medium rounded-lg border border-info/30 transition-all duration-200 text-sm" type="button">
+            <span class="text-xs">Test</span>
+          </button>
+        </div>
+      `;
+      
+      container.appendChild(item);
+      
+      // Event listeners
+      item.querySelector('.btn-remove-proxy').addEventListener('click', () => {
+        item.remove();
+        updateRemoveButtons();
+        saveToStorage();
+      });
+      
+      item.querySelector('.btn-test-proxy').addEventListener('click', async () => {
+        const btn = item.querySelector('.btn-test-proxy');
+        const host = item.querySelector('.proxy-host').value.trim();
+        const port = parseInt(item.querySelector('.proxy-port').value) || 0;
+        
+        if (!host || !port) return;
+        
+        btn.disabled = true;
+        btn.innerHTML = '<span class="text-xs">...</span>';
+        
+        try {
+          const r = await fetch('/api/proxy/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ host, port })
+          });
+          const data = await r.json();
+          
+          if (data.success) {
+            btn.innerHTML = '<span class="text-xs text-success">✓</span>';
+            log(L().proxyTestSuccess + ': ' + host + ':' + port);
+          } else {
+            btn.innerHTML = '<span class="text-xs text-error">✗</span>';
+            log(L().proxyTestFailed + ': ' + host + ':' + port);
+          }
+        } catch (e) {
+          btn.innerHTML = '<span class="text-xs text-error">✗</span>';
+        }
+        
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.innerHTML = '<span class="text-xs">Test</span>';
+        }, 2000);
+      });
+      
+      // Auto-save on change
+      item.querySelectorAll('input').forEach(input => {
+        input.addEventListener('change', saveToStorage);
+      });
+      
+      updateRemoveButtons();
+    }
+    
+    function updateRemoveButtons() {
+      const items = document.querySelectorAll('#privateProxyList .proxy-item');
+      items.forEach((item, idx) => {
+        const btn = item.querySelector('.btn-remove-proxy');
+        if (items.length <= 1) {
+          btn.classList.add('hidden');
+        } else {
+          btn.classList.remove('hidden');
+        }
+      });
+    }
+    
+    document.getElementById('btnAddProxy').addEventListener('click', () => {
+      addProxyItem();
+      saveToStorage();
+    });
 
     const STORAGE_KEY = 'eroshit_form';
     const btnStart = document.getElementById('btnStart');
@@ -648,6 +1848,20 @@
     function parseKeywords(s) {
       if (!s || typeof s !== 'string') return [];
       return s.split(/[\n,;]+/).map(k => k.trim()).filter(k => k);
+    }
+    
+    function parseExitPages(s) {
+      if (!s || typeof s !== 'string') return [];
+      return s.split(/\n+/).map(k => k.trim()).filter(k => k);
+    }
+    
+    function parseJSON(s) {
+      if (!s || typeof s !== 'string') return {};
+      try {
+        return JSON.parse(s);
+      } catch (e) {
+        return {};
+      }
     }
 
     function loadFromStorage() {
@@ -669,12 +1883,88 @@
           sendScrollEvent.checked = !!c.send_scroll_event;
           useSitemap.checked = !!c.use_sitemap;
           sitemapHomepageWeight.value = (c.sitemap_homepage_weight ?? 60).toString();
-          proxyHost.value = c.proxy_host ?? '';
-          proxyPort.value = c.proxy_port ?? '';
-          proxyUser.value = c.proxy_user ?? '';
-          proxyPass.value = c.proxy_pass ?? '';
           usePublicProxy.checked = !!c.use_public_proxy;
           checkerWorkers.value = (c.checker_workers ?? 25).toString();
+          deviceType.value = c.device_type ?? 'mixed';
+          setSelectedBrands(c.device_brands ?? []);
+          referrerKeyword.value = c.referrer_keyword ?? '';
+          referrerEnabled.checked = !!c.referrer_enabled;
+          
+          // New v2.3.0 fields
+          document.getElementById('minPageDuration').value = c.min_page_duration ?? 15;
+          document.getElementById('maxPageDuration').value = c.max_page_duration ?? 120;
+          document.getElementById('minScrollPercent').value = c.min_scroll_percent ?? 25;
+          document.getElementById('maxScrollPercent').value = c.max_scroll_percent ?? 100;
+          document.getElementById('clickProbability').value = c.click_probability ?? 30;
+          document.getElementById('sessionMinPages').value = c.session_min_pages ?? 2;
+          document.getElementById('sessionMaxPages').value = c.session_max_pages ?? 5;
+          document.getElementById('enableSessionDepth').checked = c.enable_session_depth !== false;
+          document.getElementById('targetBounceRate').value = c.target_bounce_rate ?? 35;
+          document.getElementById('enableBounceControl').checked = c.enable_bounce_control !== false;
+          document.getElementById('customDimensions').value = c.custom_dimensions ?? '';
+          document.getElementById('customMetrics').value = c.custom_metrics ?? '';
+          document.getElementById('enableCustomDimensions').checked = !!c.enable_custom_dimensions;
+          document.getElementById('gscPropertyUrl').value = c.gsc_property_url ?? '';
+          document.getElementById('gscApiKey').value = c.gsc_api_key ?? '';
+          document.getElementById('enableGscIntegration').checked = !!c.enable_gsc_integration;
+          document.getElementById('useGscQueries').checked = !!c.use_gsc_queries;
+          document.getElementById('returningVisitorRate').value = c.returning_visitor_rate ?? 30;
+          document.getElementById('returningVisitorDays').value = c.returning_visitor_days ?? 7;
+          document.getElementById('enableReturningVisitor').checked = c.enable_returning_visitor !== false;
+          document.getElementById('exitPages').value = Array.isArray(c.exit_pages) ? c.exit_pages.join('\n') : '';
+          document.getElementById('enableExitPageControl').checked = !!c.enable_exit_page_control;
+          document.getElementById('browserProfilePath').value = c.browser_profile_path ?? './browser_profiles';
+          document.getElementById('maxBrowserProfiles').value = c.max_browser_profiles ?? 100;
+          document.getElementById('enableBrowserProfile').checked = !!c.enable_browser_profile;
+          document.getElementById('persistCookies').checked = c.persist_cookies !== false;
+          document.getElementById('persistLocalStorage').checked = c.persist_local_storage !== false;
+          document.getElementById('tlsFingerprintMode').value = c.tls_fingerprint_mode ?? 'random';
+          document.getElementById('enableJa3Randomization').checked = c.enable_ja3_randomization !== false;
+          document.getElementById('enableJa4Randomization').checked = c.enable_ja4_randomization !== false;
+          document.getElementById('proxyRotationMode').value = c.proxy_rotation_mode ?? 'round-robin';
+          document.getElementById('proxyRotationInterval').value = c.proxy_rotation_interval ?? 1;
+          document.getElementById('enableProxyRotation').checked = c.enable_proxy_rotation !== false;
+          document.getElementById('referrerSource').value = c.referrer_source ?? 'google';
+          document.getElementById('geoCountry').value = c.geo_country ?? '';
+          document.getElementById('geoTimezone').value = c.geo_timezone ?? '';
+          document.getElementById('geoLanguage').value = c.geo_language ?? '';
+          
+          // Stealth options
+          document.getElementById('stealthWebdriver').checked = c.stealth_webdriver !== false;
+          document.getElementById('stealthChrome').checked = c.stealth_chrome !== false;
+          document.getElementById('stealthPlugins').checked = c.stealth_plugins !== false;
+          document.getElementById('stealthWebGL').checked = c.stealth_webgl !== false;
+          document.getElementById('stealthAudio').checked = c.stealth_audio !== false;
+          document.getElementById('stealthCanvas').checked = c.stealth_canvas !== false;
+          document.getElementById('stealthTimezone').checked = c.stealth_timezone !== false;
+          document.getElementById('stealthLanguage').checked = c.stealth_language !== false;
+          
+          // Performance
+          document.getElementById('visitTimeout').value = c.visit_timeout ?? 90;
+          document.getElementById('pageLoadWait').value = c.page_load_wait ?? 1500;
+          document.getElementById('retryCount').value = c.retry_count ?? 3;
+          
+          // Resource blocking
+          document.getElementById('blockImages').checked = c.block_images !== false;
+          document.getElementById('blockStyles').checked = c.block_styles !== false;
+          document.getElementById('blockFonts').checked = c.block_fonts !== false;
+          document.getElementById('blockMedia').checked = c.block_media !== false;
+          
+          // Behavior simulation
+          document.getElementById('simulateMouseMove').checked = c.simulate_mouse_move !== false;
+          document.getElementById('simulateKeyboard').checked = !!c.simulate_keyboard;
+          document.getElementById('simulateClicks').checked = c.simulate_clicks !== false;
+          document.getElementById('simulateFocus').checked = c.simulate_focus !== false;
+          
+          // Analytics events
+          document.getElementById('sendPageView').checked = c.send_page_view !== false;
+          document.getElementById('sendSessionStart').checked = c.send_session_start !== false;
+          document.getElementById('sendUserEngagement').checked = c.send_user_engagement !== false;
+          document.getElementById('sendFirstVisit').checked = c.send_first_visit !== false;
+          
+          // Private proxies
+          setPrivateProxies(c.private_proxies ?? []);
+          
           return true;
         }
       } catch (_) {}
@@ -698,12 +1988,87 @@
           send_scroll_event: sendScrollEvent.checked,
           use_sitemap: useSitemap.checked,
           sitemap_homepage_weight: parseInt(sitemapHomepageWeight.value) || 60,
-          proxy_host: proxyHost.value.trim(),
-          proxy_port: parseInt(proxyPort.value) || 0,
-          proxy_user: proxyUser.value.trim(),
-          proxy_pass: proxyPass.value,
           use_public_proxy: usePublicProxy.checked,
-          checker_workers: parseInt(checkerWorkers.value) || 25
+          checker_workers: parseInt(checkerWorkers.value) || 25,
+          device_type: deviceType.value || 'mixed',
+          device_brands: getSelectedBrands(),
+          referrer_keyword: referrerKeyword.value.trim(),
+          referrer_enabled: referrerEnabled.checked,
+          referrer_source: document.getElementById('referrerSource').value,
+          
+          // New v2.3.0 fields
+          min_page_duration: parseInt(document.getElementById('minPageDuration').value) || 15,
+          max_page_duration: parseInt(document.getElementById('maxPageDuration').value) || 120,
+          min_scroll_percent: parseInt(document.getElementById('minScrollPercent').value) || 25,
+          max_scroll_percent: parseInt(document.getElementById('maxScrollPercent').value) || 100,
+          click_probability: parseInt(document.getElementById('clickProbability').value) || 30,
+          session_min_pages: parseInt(document.getElementById('sessionMinPages').value) || 2,
+          session_max_pages: parseInt(document.getElementById('sessionMaxPages').value) || 5,
+          enable_session_depth: document.getElementById('enableSessionDepth').checked,
+          target_bounce_rate: parseInt(document.getElementById('targetBounceRate').value) || 35,
+          enable_bounce_control: document.getElementById('enableBounceControl').checked,
+          custom_dimensions: document.getElementById('customDimensions').value.trim(),
+          custom_metrics: document.getElementById('customMetrics').value.trim(),
+          enable_custom_dimensions: document.getElementById('enableCustomDimensions').checked,
+          gsc_property_url: document.getElementById('gscPropertyUrl').value.trim(),
+          gsc_api_key: document.getElementById('gscApiKey').value,
+          enable_gsc_integration: document.getElementById('enableGscIntegration').checked,
+          use_gsc_queries: document.getElementById('useGscQueries').checked,
+          returning_visitor_rate: parseInt(document.getElementById('returningVisitorRate').value) || 30,
+          returning_visitor_days: parseInt(document.getElementById('returningVisitorDays').value) || 7,
+          enable_returning_visitor: document.getElementById('enableReturningVisitor').checked,
+          exit_pages: parseExitPages(document.getElementById('exitPages').value),
+          enable_exit_page_control: document.getElementById('enableExitPageControl').checked,
+          browser_profile_path: document.getElementById('browserProfilePath').value.trim() || './browser_profiles',
+          max_browser_profiles: parseInt(document.getElementById('maxBrowserProfiles').value) || 100,
+          enable_browser_profile: document.getElementById('enableBrowserProfile').checked,
+          persist_cookies: document.getElementById('persistCookies').checked,
+          persist_local_storage: document.getElementById('persistLocalStorage').checked,
+          tls_fingerprint_mode: document.getElementById('tlsFingerprintMode').value,
+          enable_ja3_randomization: document.getElementById('enableJa3Randomization').checked,
+          enable_ja4_randomization: document.getElementById('enableJa4Randomization').checked,
+          proxy_rotation_mode: document.getElementById('proxyRotationMode').value,
+          proxy_rotation_interval: parseInt(document.getElementById('proxyRotationInterval').value) || 1,
+          enable_proxy_rotation: document.getElementById('enableProxyRotation').checked,
+          geo_country: document.getElementById('geoCountry').value,
+          geo_timezone: document.getElementById('geoTimezone').value,
+          geo_language: document.getElementById('geoLanguage').value,
+          
+          // Stealth
+          stealth_webdriver: document.getElementById('stealthWebdriver').checked,
+          stealth_chrome: document.getElementById('stealthChrome').checked,
+          stealth_plugins: document.getElementById('stealthPlugins').checked,
+          stealth_webgl: document.getElementById('stealthWebGL').checked,
+          stealth_audio: document.getElementById('stealthAudio').checked,
+          stealth_canvas: document.getElementById('stealthCanvas').checked,
+          stealth_timezone: document.getElementById('stealthTimezone').checked,
+          stealth_language: document.getElementById('stealthLanguage').checked,
+          
+          // Performance
+          visit_timeout: parseInt(document.getElementById('visitTimeout').value) || 90,
+          page_load_wait: parseInt(document.getElementById('pageLoadWait').value) || 1500,
+          retry_count: parseInt(document.getElementById('retryCount').value) || 3,
+          
+          // Resource blocking
+          block_images: document.getElementById('blockImages').checked,
+          block_styles: document.getElementById('blockStyles').checked,
+          block_fonts: document.getElementById('blockFonts').checked,
+          block_media: document.getElementById('blockMedia').checked,
+          
+          // Behavior
+          simulate_mouse_move: document.getElementById('simulateMouseMove').checked,
+          simulate_keyboard: document.getElementById('simulateKeyboard').checked,
+          simulate_clicks: document.getElementById('simulateClicks').checked,
+          simulate_focus: document.getElementById('simulateFocus').checked,
+          
+          // Analytics events
+          send_page_view: document.getElementById('sendPageView').checked,
+          send_session_start: document.getElementById('sendSessionStart').checked,
+          send_user_engagement: document.getElementById('sendUserEngagement').checked,
+          send_first_visit: document.getElementById('sendFirstVisit').checked,
+          
+          // Private proxies
+          private_proxies: getPrivateProxies()
         }));
       } catch (_) {}
     }
@@ -727,15 +2092,17 @@
         sendScrollEvent.checked = !!c.send_scroll_event;
         useSitemap.checked = !!c.use_sitemap;
         sitemapHomepageWeight.value = String(c.sitemap_homepage_weight ?? 60);
-        proxyHost.value = c.proxy_host || '';
-        proxyPort.value = c.proxy_port || '';
-        proxyUser.value = c.proxy_user || '';
-        proxyPass.value = c.proxy_pass || '';
         usePublicProxy.checked = !!c.use_public_proxy;
         checkerWorkers.value = String(c.checker_workers ?? 25);
+        deviceType.value = c.device_type || 'mixed';
+        setSelectedBrands(c.device_brands || []);
+        referrerKeyword.value = c.referrer_keyword || '';
+        referrerEnabled.checked = !!c.referrer_enabled;
+        setPrivateProxies(c.private_proxies || []);
       } catch (e) {
         log(L().logConfigError + ': ' + e.message);
         domain.value = 'example.com';
+        addProxyItem();
       }
     }
 
@@ -759,12 +2126,13 @@
           send_scroll_event: sendScrollEvent.checked,
           use_sitemap: useSitemap.checked,
           sitemap_homepage_weight: parseInt(sitemapHomepageWeight.value) || 60,
-          proxy_host: proxyHost.value.trim(),
-          proxy_port: parseInt(proxyPort.value) || 0,
-          proxy_user: proxyUser.value.trim(),
-          proxy_pass: proxyPass.value,
           use_public_proxy: usePublicProxy.checked,
-          checker_workers: parseInt(checkerWorkers.value) || 25
+          checker_workers: parseInt(checkerWorkers.value) || 25,
+          device_type: deviceType.value || 'mixed',
+          device_brands: getSelectedBrands(),
+          referrer_keyword: referrerKeyword.value.trim(),
+          referrer_enabled: referrerEnabled.checked,
+          private_proxies: getPrivateProxies()
         })
       });
     }
@@ -777,6 +2145,10 @@
       logArea.appendChild(line);
       logArea.scrollTop = logArea.scrollHeight;
     }
+
+    document.getElementById('btnClearLog').addEventListener('click', () => {
+      logArea.innerHTML = '';
+    });
 
     async function start() {
       await saveConfig();
@@ -854,6 +2226,30 @@
       // Proxy status güncelle
       if (s.proxy_status) {
         document.getElementById('metricLiveProxy').textContent = s.proxy_status.live_count ?? 0;
+        document.getElementById('proxyStatLive').textContent = s.proxy_status.live_count ?? 0;
+        document.getElementById('proxyStatQueue').textContent = s.proxy_status.queue_count ?? 0;
+        document.getElementById('proxyStatAdded').textContent = s.proxy_status.added_total ?? 0;
+        document.getElementById('proxyStatRemoved').textContent = s.proxy_status.removed_total ?? 0;
+      }
+      
+      // Quality score
+      const total = s.total_hits ?? 0;
+      const success = s.success_hits ?? 0;
+      if (total > 0) {
+        const rate = (success / total * 100).toFixed(0);
+        let grade = 'F';
+        if (rate >= 90) grade = 'A+';
+        else if (rate >= 80) grade = 'A';
+        else if (rate >= 70) grade = 'B+';
+        else if (rate >= 60) grade = 'B';
+        else if (rate >= 50) grade = 'C';
+        else if (rate >= 40) grade = 'D';
+        document.getElementById('metricQuality').textContent = grade;
+      }
+      
+      // Bounce rate
+      if (s.bounce_rate !== undefined) {
+        document.getElementById('metricBounceRate').textContent = s.bounce_rate.toFixed(0) + '%';
       }
       
       if (!s.running && btnStart.disabled) setRunning(false);
@@ -897,15 +2293,12 @@
         await update();
       }
     }
-
-    let proxyPollInterval = null;
     
     async function proxyFetch() {
       const btn = document.getElementById('btnProxyFetch');
       const originalText = btn.textContent;
       const workers = parseInt(checkerWorkers.value) || 25;
       
-      // Loading state başlat
       btn.disabled = true;
       btn.innerHTML = '<span class="inline-flex items-center gap-2"><svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span>' + (L().proxyChecking || 'Çekiliyor...') + '</span></span>';
       
@@ -938,7 +2331,6 @@
         }
         log(L().logProxyFetchStarted);
         
-        // Proxy status polling başlat
         startProxyStatusPolling(btn, originalText);
         
       } catch (e) {
@@ -956,10 +2348,12 @@
           const r = await fetch('/api/proxy/status');
           const status = await r.json();
           
-          // Live proxy sayısını güncelle
           document.getElementById('metricLiveProxy').textContent = status.live_count ?? 0;
+          document.getElementById('proxyStatLive').textContent = status.live_count ?? 0;
+          document.getElementById('proxyStatQueue').textContent = status.queue_count ?? 0;
+          document.getElementById('proxyStatAdded').textContent = status.added_total ?? 0;
+          document.getElementById('proxyStatRemoved').textContent = status.removed_total ?? 0;
           
-          // Checking bittiğinde butonu eski haline döndür
           if (!status.checking) {
             clearInterval(proxyPollInterval);
             proxyPollInterval = null;
@@ -970,17 +2364,76 @@
         } catch (_) {}
       }, 1500);
     }
+    
+    async function proxyExport() {
+      try {
+        const r = await fetch('/api/proxy/export');
+        const blob = await r.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'live_proxies.txt';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      } catch (e) {
+        log('Export error: ' + e.message);
+      }
+    }
+    
+    async function fetchGscQueries() {
+      const btn = document.getElementById('btnFetchGscQueries');
+      const originalText = btn.querySelector('span').textContent;
+      
+      btn.disabled = true;
+      btn.innerHTML = '<span class="inline-flex items-center gap-2"><svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span>...</span></span>';
+      
+      log(L().gscFetchStarted);
+      
+      try {
+        const r = await fetch('/api/gsc/queries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            property_url: document.getElementById('gscPropertyUrl').value.trim(),
+            api_key: document.getElementById('gscApiKey').value
+          })
+        });
+        const data = await r.json();
+        
+        if (data.queries && data.queries.length > 0) {
+          const container = document.getElementById('gscQueriesContainer');
+          const list = document.getElementById('gscQueriesList');
+          container.classList.remove('hidden');
+          list.innerHTML = data.queries.map(q => `<div class="py-1 border-b border-border/30">${q.query} <span class="text-zinc-600">(${q.clicks} clicks)</span></div>`).join('');
+          log((L().gscFetchSuccess || '').replace('{{n}}', data.queries.length));
+        } else {
+          log(L().gscFetchError + (data.error || 'No queries found'));
+        }
+      } catch (e) {
+        log(L().gscFetchError + e.message);
+      }
+      
+      btn.disabled = false;
+      btn.innerHTML = '<span>' + originalText + '</span>';
+    }
 
     btnStart.addEventListener('click', start);
     btnStop.addEventListener('click', stop);
     document.getElementById('btnProxyFetch').addEventListener('click', proxyFetch);
+    document.getElementById('btnProxyExport').addEventListener('click', proxyExport);
+    document.getElementById('btnFetchGscQueries').addEventListener('click', fetchGscQueries);
 
-    // Auto-save on change
-    [domain, gtagId, maxPages, duration, hpm, maxConcurrent, outputDir, exportFormat, scrollStrategy, keywords, proxyHost, proxyPort, proxyUser, proxyPass, checkerWorkers].forEach(el => {
-      if (el) el.addEventListener('change', saveToStorage);
+    // Auto-save on change for all form elements
+    const formElements = document.querySelectorAll('input[type="text"], input[type="number"], input[type="password"], select, textarea');
+    formElements.forEach(el => {
+      el.addEventListener('change', saveToStorage);
     });
-    [canvasFingerprint, sendScrollEvent, useSitemap, usePublicProxy, sitemapHomepageWeight].forEach(el => {
-      if (el) el.addEventListener('change', saveToStorage);
+    
+    const checkboxElements = document.querySelectorAll('input[type="checkbox"]');
+    checkboxElements.forEach(el => {
+      el.addEventListener('change', saveToStorage);
     });
 
     loadConfig().then(() => {

@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -141,14 +142,36 @@ func printBanner(url, lang string) {
 	fmt.Println()
 }
 
-func openBrowser(url string) {
+// SECURITY FIX: URL validation to prevent command injection
+func openBrowser(rawURL string) {
+	// Validate URL to prevent command injection
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Geçersiz URL: %v\n", err)
+		return
+	}
+	
+	// Only allow http and https schemes
+	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		fmt.Fprintf(os.Stderr, "Güvenlik: Sadece http/https URL'leri desteklenir\n")
+		return
+	}
+	
+	// Validate host is localhost
+	host := parsedURL.Hostname()
+	if host != "127.0.0.1" && host != "localhost" && host != "::1" {
+		fmt.Fprintf(os.Stderr, "Güvenlik: Sadece localhost URL'leri açılabilir\n")
+		return
+	}
+	
 	switch runtime.GOOS {
 	case "windows":
-		exec.Command("cmd", "/c", "start", url).Start()
+		// Use rundll32 instead of cmd /c start for safer execution
+		exec.Command("rundll32", "url.dll,FileProtocolHandler", rawURL).Start()
 	case "darwin":
-		exec.Command("open", url).Start()
+		exec.Command("open", rawURL).Start()
 	default:
-		exec.Command("xdg-open", url).Start()
+		exec.Command("xdg-open", rawURL).Start()
 	}
 }
 

@@ -12,6 +12,9 @@ import (
 	"eroshit/pkg/i18n"
 )
 
+// PERFORMANCE FIX: Maximum records to prevent memory exhaustion
+const maxRecords = 100000
+
 // HitRecord tek bir istek kaydı
 type HitRecord struct {
 	Timestamp    time.Time `json:"timestamp"`
@@ -36,15 +39,16 @@ type Metrics struct {
 }
 
 type Reporter struct {
-	mu        sync.RWMutex
-	records   []HitRecord
-	metrics   Metrics
-	outputDir string
-	format    string
-	logChan   chan string
-	domain    string
-	locale    string // "tr" veya "en"
-	closed    bool   // kanal kapatıldı mı
+	mu            sync.RWMutex
+	records       []HitRecord
+	metrics       Metrics
+	outputDir     string
+	format        string
+	logChan       chan string
+	domain        string
+	locale        string // "tr" veya "en"
+	closed        bool   // kanal kapatıldı mı
+	recordsFlushed int   // PERFORMANCE: Track flushed records count
 }
 
 func New(outputDir, format string, domain string) *Reporter {
@@ -72,6 +76,15 @@ func NewWithLocale(outputDir, format string, domain, locale string) *Reporter {
 func (r *Reporter) Record(h HitRecord) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
+	// PERFORMANCE FIX: Prevent unbounded memory growth
+	// When records exceed maxRecords, keep only the last half
+	if len(r.records) >= maxRecords {
+		// Keep the last 50% of records
+		keepFrom := len(r.records) / 2
+		r.recordsFlushed += keepFrom
+		r.records = r.records[keepFrom:]
+	}
 
 	r.records = append(r.records, h)
 	r.metrics.TotalHits++

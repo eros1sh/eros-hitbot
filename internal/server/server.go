@@ -2,14 +2,21 @@ package server
 
 import (
 	"context"
+	"crypto"
+	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/x509"
 	"embed"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,7 +27,14 @@ import (
 	"eroshit/pkg/useragent"
 
 	"github.com/gorilla/websocket"
+	"golang.org/x/time/rate"
 )
+
+// SECURITY: Server start time for health endpoint
+var serverStartTime = time.Now()
+
+// SECURITY: Rate limiter - 100 requests per second with burst of 200
+var apiLimiter = rate.NewLimiter(rate.Limit(100), 200)
 
 //go:embed static/*
 var staticFS embed.FS
@@ -176,11 +190,40 @@ type configFile struct {
 	ProxySourceURLs        []string `json:"proxySourceURLs"`
 	GitHubRepos            []string `json:"githubRepos"`
 	CheckerWorkers         int      `json:"checkerWorkers"`
+	// Private proxy alanları
+	PrivateProxies    []privateProxyFile `json:"privateProxies"`
+	UsePrivateProxy   bool               `json:"usePrivateProxy"`
+	// Yeni alanlar
+	DeviceType        string   `json:"deviceType"`
+	DeviceBrands      []string `json:"deviceBrands"`
+	ReferrerKeyword   string   `json:"referrerKeyword"`
+	ReferrerEnabled   bool     `json:"referrerEnabled"`
+}
+
+type privateProxyFile struct {
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	User     string `json:"user"`
+	Pass     string `json:"pass"`
+	Protocol string `json:"protocol"`
 }
 
 func saveConfigToFile(cfg *config.Config) {
 	wd, _ := os.Getwd()
 	paths := []string{filepath.Join(wd, "config.json"), filepath.Join(wd, "..", "config.json"), "config.json"}
+	
+	// Private proxy'leri dönüştür
+	var privateProxies []privateProxyFile
+	for _, pp := range cfg.PrivateProxies {
+		privateProxies = append(privateProxies, privateProxyFile{
+			Host:     pp.Host,
+			Port:     pp.Port,
+			User:     pp.User,
+			Pass:     pp.Pass,
+			Protocol: pp.Protocol,
+		})
+	}
+	
 	for _, p := range paths {
 		dir := filepath.Dir(p)
 		if err := os.MkdirAll(dir, 0755); err == nil {
@@ -207,6 +250,14 @@ func saveConfigToFile(cfg *config.Config) {
 				ProxySourceURLs:       cfg.ProxySourceURLs,
 				GitHubRepos:           cfg.GitHubRepos,
 				CheckerWorkers:        cfg.CheckerWorkers,
+				// Private proxy alanları
+				PrivateProxies:    privateProxies,
+				UsePrivateProxy:   cfg.UsePrivateProxy,
+				// Yeni alanlar
+				DeviceType:        cfg.DeviceType,
+				DeviceBrands:      cfg.DeviceBrands,
+				ReferrerKeyword:   cfg.ReferrerKeyword,
+				ReferrerEnabled:   cfg.ReferrerEnabled,
 			}, "", "  ")
 			if err := os.WriteFile(p, data, 0644); err == nil {
 				return
@@ -225,24 +276,62 @@ func loadConfig(dirs []string) (*config.Config, error) {
 	return nil, fmt.Errorf("config.json bulunamadı")
 }
 
+// SECURITY: Rate limiting middleware
+func rateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !apiLimiter.Allow() {
+			http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
+			return
+		}
+		next(w, r)
+	}
+}
+
 func (s *Server) Routes() http.Handler {
 	mux := http.NewServeMux()
 
 	sub, _ := fs.Sub(staticFS, "static")
 	mux.Handle("/", http.FileServer(http.FS(sub)))
 
-	mux.HandleFunc("/api/config", s.handleConfig)
-	mux.HandleFunc("/api/start", s.handleStart)
-	mux.HandleFunc("/api/stop", s.handleStop)
-	mux.HandleFunc("/api/status", s.handleStatus)
-	mux.HandleFunc("/api/logs", s.handleLogs)
-	mux.HandleFunc("/api/ws", s.handleWebSocket)
-	mux.HandleFunc("/api/proxy/fetch", s.handleProxyFetch)
-	mux.HandleFunc("/api/proxy/status", s.handleProxyStatus)
-	mux.HandleFunc("/api/proxy/live", s.handleProxyLive)
-	mux.HandleFunc("/api/proxy/export", s.handleProxyExport)
+	// SECURITY: Health endpoint for monitoring
+	mux.HandleFunc("/health", s.handleHealth)
+	
+	// API endpoints with rate limiting
+	mux.HandleFunc("/api/config", rateLimitMiddleware(s.handleConfig))
+	mux.HandleFunc("/api/start", rateLimitMiddleware(s.handleStart))
+	mux.HandleFunc("/api/stop", rateLimitMiddleware(s.handleStop))
+	mux.HandleFunc("/api/status", rateLimitMiddleware(s.handleStatus))
+	mux.HandleFunc("/api/logs", rateLimitMiddleware(s.handleLogs))
+	mux.HandleFunc("/api/ws", s.handleWebSocket) // WebSocket has its own handling
+	mux.HandleFunc("/api/proxy/fetch", rateLimitMiddleware(s.handleProxyFetch))
+	mux.HandleFunc("/api/proxy/status", rateLimitMiddleware(s.handleProxyStatus))
+	mux.HandleFunc("/api/proxy/live", rateLimitMiddleware(s.handleProxyLive))
+	mux.HandleFunc("/api/proxy/export", rateLimitMiddleware(s.handleProxyExport))
+	mux.HandleFunc("/api/proxy/test", rateLimitMiddleware(s.handleProxyTest))
+	mux.HandleFunc("/api/gsc/queries", rateLimitMiddleware(s.handleGSCQueries))
 
 	return mux
+}
+
+// SECURITY: Health check endpoint
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	s.mu.Lock()
+	running := s.cancel != nil
+	s.mu.Unlock()
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":     "healthy",
+		"uptime":     time.Since(serverStartTime).String(),
+		"running":    running,
+		"version":    "1.0.0",
+		"timestamp":  time.Now().UTC().Format(time.RFC3339),
+	})
 }
 
 func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
@@ -251,6 +340,19 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		s.mu.Lock()
 		cfg := s.cfg
 		s.mu.Unlock()
+		
+		// Private proxy'leri API formatına dönüştür
+		var privateProxiesAPI []map[string]interface{}
+		for _, pp := range cfg.PrivateProxies {
+			privateProxiesAPI = append(privateProxiesAPI, map[string]interface{}{
+				"host":     pp.Host,
+				"port":     pp.Port,
+				"user":     pp.User,
+				"pass":     pp.Pass,
+				"protocol": pp.Protocol,
+			})
+		}
+		
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"target_domain":          cfg.TargetDomain,
 			"max_pages":              cfg.MaxPages,
@@ -274,6 +376,14 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 			"proxy_source_urls":      cfg.ProxySourceURLs,
 			"github_repos":           cfg.GitHubRepos,
 			"checker_workers":        cfg.CheckerWorkers,
+			// Private proxy alanları
+			"private_proxies":        privateProxiesAPI,
+			"use_private_proxy":      cfg.UsePrivateProxy,
+			// Yeni alanlar
+			"device_type":            cfg.DeviceType,
+			"device_brands":          cfg.DeviceBrands,
+			"referrer_keyword":       cfg.ReferrerKeyword,
+			"referrer_enabled":       cfg.ReferrerEnabled,
 		})
 		return
 	}
@@ -301,6 +411,21 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 			ProxySourceURLs       []string `json:"proxy_source_urls"`
 			GitHubRepos           []string `json:"github_repos"`
 			CheckerWorkers        int      `json:"checker_workers"`
+			// Private proxy alanları
+			UsePrivateProxy   bool     `json:"use_private_proxy"`
+			// Yeni alanlar
+			DeviceType        string   `json:"device_type"`
+			DeviceBrands      []string `json:"device_brands"`
+			ReferrerKeyword   string   `json:"referrer_keyword"`
+			ReferrerEnabled   bool     `json:"referrer_enabled"`
+			// Private proxy listesi
+			PrivateProxies    []struct {
+				Host     string `json:"host"`
+				Port     int    `json:"port"`
+				User     string `json:"user"`
+				Pass     string `json:"pass"`
+				Protocol string `json:"protocol"`
+			} `json:"private_proxies"`
 		}
 		if json.NewDecoder(r.Body).Decode(&body) != nil {
 			http.Error(w, "Invalid JSON", 400)
@@ -333,6 +458,36 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		if body.CheckerWorkers > 0 {
 			s.cfg.CheckerWorkers = body.CheckerWorkers
 		}
+		
+		// Private proxy'leri config'e kaydet
+		s.cfg.UsePrivateProxy = body.UsePrivateProxy
+		s.cfg.PrivateProxies = nil // Önce temizle
+		for _, pp := range body.PrivateProxies {
+			if pp.Host != "" && pp.Port > 0 {
+				protocol := pp.Protocol
+				if protocol == "" {
+					protocol = "http"
+				}
+				s.cfg.PrivateProxies = append(s.cfg.PrivateProxies, config.PrivateProxy{
+					Host:     pp.Host,
+					Port:     pp.Port,
+					User:     pp.User,
+					Pass:     pp.Pass,
+					Protocol: protocol,
+				})
+			}
+		}
+		
+		// Private proxy varsa UsePrivateProxy'yi otomatik aktifleştir
+		if len(s.cfg.PrivateProxies) > 0 {
+			s.cfg.UsePrivateProxy = true
+		}
+		
+		// Yeni alanlar
+		s.cfg.DeviceType = body.DeviceType
+		s.cfg.DeviceBrands = body.DeviceBrands
+		s.cfg.ReferrerKeyword = body.ReferrerKeyword
+		s.cfg.ReferrerEnabled = body.ReferrerEnabled
 		s.cfg.ApplyDefaults()
 		s.cfg.ComputeDerived()
 		s.mu.Unlock()
@@ -376,9 +531,33 @@ func (s *Server) handleStart(w http.ResponseWriter, r *http.Request) {
 
 	rep := reporter.NewWithLocale(s.cfg.OutputDir, s.cfg.ExportFormat, s.cfg.TargetDomain, locale)
 	var livePool *proxy.LivePool
-	if s.cfg.UsePublicProxy && s.proxyService != nil {
+	
+	// Private proxy modu: kullanıcının kendi proxy'lerini LivePool'a ekle
+	if s.cfg.UsePrivateProxy && len(s.cfg.PrivateProxies) > 0 {
+		// Yeni LivePool oluştur ve private proxy'leri ekle
+		livePool = proxy.NewLivePool()
+		for _, pp := range s.cfg.PrivateProxies {
+			if pp.Host != "" && pp.Port > 0 {
+				protocol := pp.Protocol
+				if protocol == "" {
+					protocol = "http"
+				}
+				livePool.AddUnchecked(&proxy.ProxyConfig{
+					Host:     pp.Host,
+					Port:     pp.Port,
+					Username: pp.User,
+					Password: pp.Pass,
+					Protocol: protocol,
+				})
+			}
+		}
+		// Log: Private proxy sayısını bildir
+		rep.Log(fmt.Sprintf("🔐 Private proxy modu aktif: %d proxy yüklendi", livePool.Count()))
+	} else if s.cfg.UsePublicProxy && s.proxyService != nil {
+		// Public proxy modu
 		livePool = s.proxyService.LivePool
 	}
+	
 	sim, err := simulator.New(s.cfg, s.agentLoader, rep, livePool)
 	if err != nil {
 		s.mu.Unlock()
@@ -463,8 +642,28 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(s.buildStatusMap())
 }
 
+// SECURITY FIX: WebSocket origin validation to prevent CSWSH attacks
 var upgrader = websocket.Upgrader{
-	CheckOrigin:     func(r *http.Request) bool { return true },
+	CheckOrigin: func(r *http.Request) bool {
+		origin := r.Header.Get("Origin")
+		// Allow same-origin requests (no Origin header)
+		if origin == "" {
+			return true
+		}
+		// Allow localhost origins for local development
+		allowedOrigins := []string{
+			"http://127.0.0.1",
+			"http://localhost",
+			"https://127.0.0.1",
+			"https://localhost",
+		}
+		for _, allowed := range allowedOrigins {
+			if strings.HasPrefix(origin, allowed) {
+				return true
+			}
+		}
+		return false
+	},
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 }
@@ -652,9 +851,398 @@ func (s *Server) handleProxyExport(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write(data)
 }
+func (s *Server) handleProxyTest(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", 405)
+		return
+	}
+	
+	var body struct {
+		Host string `json:"host"`
+		Port int    `json:"port"`
+		User string `json:"user"`
+		Pass string `json:"pass"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "Invalid JSON", 400)
+		return
+	}
+	
+	if body.Host == "" || body.Port == 0 {
+		http.Error(w, "Host and port required", 400)
+		return
+	}
+	
+	// Proxy test - basit HTTP bağlantı testi
+	proxyURL := fmt.Sprintf("http://%s:%d", body.Host, body.Port)
+	if body.User != "" {
+		proxyURL = fmt.Sprintf("http://%s:%s@%s:%d", body.User, body.Pass, body.Host, body.Port)
+	}
+	
+	// Test için httpbin.org'a istek at
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			Proxy: func(req *http.Request) (*url.URL, error) {
+				return url.Parse(proxyURL)
+			},
+		},
+	}
+	
+	resp, err := client.Get("http://httpbin.org/ip")
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+	defer resp.Body.Close()
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":     resp.StatusCode == 200,
+		"status_code": resp.StatusCode,
+	})
+}
+
+func (s *Server) handleGSCQueries(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", 405)
+		return
+	}
+	
+	var body struct {
+		PropertyURL string `json:"property_url"`
+		APIKey      string `json:"api_key"`
+		Days        int    `json:"days"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "Invalid JSON", 400)
+		return
+	}
+	
+	if body.PropertyURL == "" {
+		http.Error(w, "Property URL required", 400)
+		return
+	}
+	
+	// Property URL'yi normalize et
+	// Kullanıcı sadece domain girerse (örn: eros.sh), otomatik olarak sc-domain: formatına çevir
+	propertyURL := strings.TrimSpace(body.PropertyURL)
+	propertyURL = strings.TrimSuffix(propertyURL, "/")
+	
+	// Eğer http:// veya https:// ile başlamıyorsa ve sc-domain: değilse
+	if !strings.HasPrefix(propertyURL, "http://") &&
+	   !strings.HasPrefix(propertyURL, "https://") &&
+	   !strings.HasPrefix(propertyURL, "sc-domain:") {
+		// Domain property olarak ayarla (en yaygın format)
+		propertyURL = "sc-domain:" + propertyURL
+	}
+	
+	if body.APIKey == "" {
+		http.Error(w, "API Key (Service Account JSON) required", 400)
+		return
+	}
+	
+	// Service Account JSON'ı parse et
+	var serviceAccount struct {
+		Type                    string `json:"type"`
+		ProjectID               string `json:"project_id"`
+		PrivateKeyID            string `json:"private_key_id"`
+		PrivateKey              string `json:"private_key"`
+		ClientEmail             string `json:"client_email"`
+		ClientID                string `json:"client_id"`
+		AuthURI                 string `json:"auth_uri"`
+		TokenURI                string `json:"token_uri"`
+		AuthProviderX509CertURL string `json:"auth_provider_x509_cert_url"`
+		ClientX509CertURL       string `json:"client_x509_cert_url"`
+	}
+	
+	if err := json.Unmarshal([]byte(body.APIKey), &serviceAccount); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Invalid Service Account JSON format: " + err.Error(),
+		})
+		return
+	}
+	
+	if serviceAccount.Type != "service_account" {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Invalid credential type. Expected 'service_account', got '" + serviceAccount.Type + "'",
+		})
+		return
+	}
+	
+	if serviceAccount.PrivateKey == "" || serviceAccount.ClientEmail == "" {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Service Account JSON missing required fields (private_key or client_email)",
+		})
+		return
+	}
+	
+	// GSC API çağrısı yap
+	days := body.Days
+	if days <= 0 {
+		days = 28 // Varsayılan 28 gün
+	}
+	
+	queries, err := fetchGSCQueries(propertyURL, serviceAccount.ClientEmail, serviceAccount.PrivateKey, days)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "GSC API error: " + err.Error(),
+		})
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"queries": queries,
+	})
+}
+
+// fetchGSCQueries Google Search Console API'den sorguları çeker
+func fetchGSCQueries(propertyURL, clientEmail, privateKey string, days int) ([]map[string]interface{}, error) {
+	// JWT token oluştur
+	token, err := createGSCJWT(clientEmail, privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("JWT oluşturma hatası: %w", err)
+	}
+	
+	// Access token al
+	accessToken, err := exchangeJWTForAccessToken(token)
+	if err != nil {
+		return nil, fmt.Errorf("Access token alma hatası: %w", err)
+	}
+	
+	// GSC API'ye istek at
+	endDate := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+	startDate := time.Now().AddDate(0, 0, -days).Format("2006-01-02")
+	
+	requestBody := map[string]interface{}{
+		"startDate":  startDate,
+		"endDate":    endDate,
+		"dimensions": []string{"query"},
+		"rowLimit":   100,
+	}
+	
+	jsonBody, _ := json.Marshal(requestBody)
+	
+	// Property URL'yi encode et
+	encodedProperty := url.QueryEscape(propertyURL)
+	apiURL := fmt.Sprintf("https://www.googleapis.com/webmasters/v3/sites/%s/searchAnalytics/query", encodedProperty)
+	
+	req, err := http.NewRequest("POST", apiURL, strings.NewReader(string(jsonBody)))
+	if err != nil {
+		return nil, err
+	}
+	
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Content-Type", "application/json")
+	
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("GSC API hatası (%d): %s", resp.StatusCode, string(bodyBytes))
+	}
+	
+	var gscResponse struct {
+		Rows []struct {
+			Keys        []string `json:"keys"`
+			Clicks      float64  `json:"clicks"`
+			Impressions float64  `json:"impressions"`
+			CTR         float64  `json:"ctr"`
+			Position    float64  `json:"position"`
+		} `json:"rows"`
+	}
+	
+	if err := json.NewDecoder(resp.Body).Decode(&gscResponse); err != nil {
+		return nil, fmt.Errorf("GSC yanıt parse hatası: %w", err)
+	}
+	
+	queries := make([]map[string]interface{}, 0, len(gscResponse.Rows))
+	for _, row := range gscResponse.Rows {
+		if len(row.Keys) > 0 {
+			queries = append(queries, map[string]interface{}{
+				"query":       row.Keys[0],
+				"clicks":      int(row.Clicks),
+				"impressions": int(row.Impressions),
+				"ctr":         row.CTR,
+				"position":    row.Position,
+			})
+		}
+	}
+	
+	return queries, nil
+}
+
+// createGSCJWT Service Account için JWT oluşturur
+func createGSCJWT(clientEmail, privateKey string) (string, error) {
+	// JWT Header
+	header := map[string]string{
+		"alg": "RS256",
+		"typ": "JWT",
+	}
+	headerJSON, _ := json.Marshal(header)
+	headerB64 := base64URLEncode(headerJSON)
+	
+	// JWT Claims
+	now := time.Now().Unix()
+	claims := map[string]interface{}{
+		"iss":   clientEmail,
+		"scope": "https://www.googleapis.com/auth/webmasters.readonly",
+		"aud":   "https://oauth2.googleapis.com/token",
+		"iat":   now,
+		"exp":   now + 3600,
+	}
+	claimsJSON, _ := json.Marshal(claims)
+	claimsB64 := base64URLEncode(claimsJSON)
+	
+	// Signature
+	signatureInput := headerB64 + "." + claimsB64
+	signature, err := signRS256(signatureInput, privateKey)
+	if err != nil {
+		return "", err
+	}
+	
+	return signatureInput + "." + signature, nil
+}
+
+// exchangeJWTForAccessToken JWT'yi access token ile değiştirir
+func exchangeJWTForAccessToken(jwt string) (string, error) {
+	data := url.Values{}
+	data.Set("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer")
+	data.Set("assertion", jwt)
+	
+	resp, err := http.PostForm("https://oauth2.googleapis.com/token", data)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("token exchange hatası (%d): %s", resp.StatusCode, string(bodyBytes))
+	}
+	
+	var tokenResponse struct {
+		AccessToken string `json:"access_token"`
+		ExpiresIn   int    `json:"expires_in"`
+		TokenType   string `json:"token_type"`
+	}
+	
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResponse); err != nil {
+		return "", err
+	}
+	
+	return tokenResponse.AccessToken, nil
+}
+
+// base64URLEncode base64 URL encoding
+func base64URLEncode(data []byte) string {
+	encoded := encodeBase64(data)
+	// URL-safe: + -> -, / -> _, padding kaldır
+	encoded = strings.ReplaceAll(encoded, "+", "-")
+	encoded = strings.ReplaceAll(encoded, "/", "_")
+	encoded = strings.TrimRight(encoded, "=")
+	return encoded
+}
+
+// encodeBase64 standart base64 encoding
+func encodeBase64(data []byte) string {
+	const base64Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+	result := make([]byte, ((len(data)+2)/3)*4)
+	
+	for i, j := 0, 0; i < len(data); i, j = i+3, j+4 {
+		var n uint32
+		remaining := len(data) - i
+		
+		n = uint32(data[i]) << 16
+		if remaining > 1 {
+			n |= uint32(data[i+1]) << 8
+		}
+		if remaining > 2 {
+			n |= uint32(data[i+2])
+		}
+		
+		result[j] = base64Chars[(n>>18)&0x3F]
+		result[j+1] = base64Chars[(n>>12)&0x3F]
+		
+		if remaining > 1 {
+			result[j+2] = base64Chars[(n>>6)&0x3F]
+		} else {
+			result[j+2] = '='
+		}
+		
+		if remaining > 2 {
+			result[j+3] = base64Chars[n&0x3F]
+		} else {
+			result[j+3] = '='
+		}
+	}
+	
+	return string(result)
+}
+
+// signRS256 RS256 imzalama
+func signRS256(input, privateKeyPEM string) (string, error) {
+	// PEM formatındaki private key'i parse et
+	block, _ := pem.Decode([]byte(privateKeyPEM))
+	if block == nil {
+		return "", fmt.Errorf("PEM block bulunamadı")
+	}
+	
+	var privateKey interface{}
+	var err error
+	
+	// PKCS#8 veya PKCS#1 formatını dene
+	privateKey, err = x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		privateKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+		if err != nil {
+			return "", fmt.Errorf("private key parse hatası: %w", err)
+		}
+	}
+	
+	rsaKey, ok := privateKey.(*rsa.PrivateKey)
+	if !ok {
+		return "", fmt.Errorf("RSA private key değil")
+	}
+	
+	// SHA256 hash
+	h := sha256.New()
+	h.Write([]byte(input))
+	hashed := h.Sum(nil)
+	
+	// RSA imzala
+	signature, err := rsa.SignPKCS1v15(nil, rsaKey, crypto.SHA256, hashed)
+	if err != nil {
+		return "", fmt.Errorf("imzalama hatası: %w", err)
+	}
+	
+	// Base64 URL encode
+	return strings.TrimRight(strings.ReplaceAll(strings.ReplaceAll(
+		encodeBase64(signature), "+", "-"), "/", "_"), "="), nil
+}
 
 func escapeSSE(s string) string {
 	b, _ := json.Marshal(s)
 	return string(b)
 }
+
 
