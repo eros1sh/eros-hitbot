@@ -7,17 +7,22 @@ import (
 )
 
 // LivePool sadece çalışan proxy'leri tutar; başarısız olanlar silinir
+// PERFORMANCE FIX: Map eklendi O(1) lookup için
 type LivePool struct {
 	mu      sync.RWMutex
 	list    []*LiveProxy
-	next    uint32 // round-robin
-	added   int64  // toplam eklenen (checker'dan veya unchecked)
-	removed int64  // başarısız diye silinen
+	index   map[string]int // PERFORMANCE: key -> list index mapping for O(1) lookup
+	next    uint32         // round-robin
+	added   int64          // toplam eklenen (checker'dan veya unchecked)
+	removed int64          // başarısız diye silinen
 }
 
 // NewLivePool boş canlı havuz oluşturur
 func NewLivePool() *LivePool {
-	return &LivePool{list: make([]*LiveProxy, 0, 256)}
+	return &LivePool{
+		list:  make([]*LiveProxy, 0, 256),
+		index: make(map[string]int, 256), // PERFORMANCE: Pre-allocate map
+	}
 }
 
 // Clear havuzu temizler (GitHub vb. ile yeniden doldurmadan önce)
@@ -25,6 +30,8 @@ func (p *LivePool) Clear() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.list = p.list[:0]
+	// PERFORMANCE FIX: Map'i de temizle
+	p.index = make(map[string]int, 256)
 	atomic.StoreUint32(&p.next, 0)
 }
 
@@ -43,6 +50,7 @@ func (p *LivePool) AddUnchecked(cfg *ProxyConfig) {
 }
 
 // Add çalışan proxy'yi havuza ekler
+// PERFORMANCE FIX: O(1) lookup için map kullan
 func (p *LivePool) Add(live *LiveProxy) {
 	if live == nil || live.ProxyConfig == nil {
 		return
@@ -50,16 +58,17 @@ func (p *LivePool) Add(live *LiveProxy) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	key := live.Key()
-	for _, existing := range p.list {
-		if existing.Key() == key {
-			return
-		}
+	// PERFORMANCE FIX: O(1) map lookup instead of O(n) slice iteration
+	if _, exists := p.index[key]; exists {
+		return
 	}
+	p.index[key] = len(p.list)
 	p.list = append(p.list, live)
 	atomic.AddInt64(&p.added, 1)
 }
 
 // Remove proxy'yi havuzdan kaldırır (başarısız kullanım sonrası)
+// PERFORMANCE FIX: O(1) lookup için map kullan
 func (p *LivePool) Remove(proxy *ProxyConfig) {
 	if proxy == nil {
 		return
@@ -67,25 +76,39 @@ func (p *LivePool) Remove(proxy *ProxyConfig) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	key := proxy.Key()
-	for i, lp := range p.list {
-		if lp.Key() == key {
-			p.list = append(p.list[:i], p.list[i+1:]...)
-			atomic.AddInt64(&p.removed, 1)
-			return
-		}
+	// PERFORMANCE FIX: O(1) map lookup
+	idx, exists := p.index[key]
+	if !exists {
+		return
 	}
+	// Remove from list (swap with last element for O(1) removal)
+	lastIdx := len(p.list) - 1
+	if idx != lastIdx {
+		// Swap with last element
+		p.list[idx] = p.list[lastIdx]
+		// Update index for swapped element
+		p.index[p.list[idx].Key()] = idx
+	}
+	p.list = p.list[:lastIdx]
+	delete(p.index, key)
+	atomic.AddInt64(&p.removed, 1)
 }
 
 // GetNext round-robin sıradaki proxy'yi döner (hitter için)
+// SECURITY FIX: Race condition düzeltildi - Write lock kullanılıyor
+// çünkü atomic.AddUint32 ile list erişimi arasında tutarlılık gerekli
 func (p *LivePool) GetNext() *ProxyConfig {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.mu.Lock() // SECURITY FIX: RLock yerine Lock kullan - atomic op + slice access
+	defer p.mu.Unlock()
 	n := len(p.list)
 	if n == 0 {
 		return nil
 	}
-	idx := atomic.AddUint32(&p.next, 1) % uint32(n)
-	if idx >= uint32(len(p.list)) {
+	// SECURITY FIX: Modulo işlemini lock içinde yap, list değişemez
+	idx := int(p.next) % n
+	p.next++
+	// Bounds check - defensive programming
+	if idx < 0 || idx >= len(p.list) {
 		idx = 0
 	}
 	return p.list[idx].ProxyConfig

@@ -16,3 +16,12 @@ proxy_enabled: false
 log_level: "info"               # debug | info | warn | error
 export_format: "both"           # csv | json | both
 output_dir: "./reports"
+
+# Advanced Session Management
+session_persistence: true       # Session'ları diske kaydet
+session_storage_path: "./sessions"  # Session kayıt dizini
+session_encryption: true        # Session şifreleme aktif
+session_ttl_hours: 168          # 7 gün TTL
+session_indexeddb_persist: true # IndexedDB persistence
+session_canvas_fingerprint: true # Canvas fingerprint kullan
+returning_visitor_rate: 30      # Returning visitor oranı (%)

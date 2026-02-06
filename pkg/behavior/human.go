@@ -12,6 +12,9 @@ import (
 	"github.com/chromedp/chromedp"
 )
 
+// ScrollType fast scroll tipi için eksik tanım
+const ScrollFast ScrollType = "fast"
+
 // Point 2D koordinat
 type Point struct {
 	X, Y int
@@ -29,9 +32,10 @@ type BehaviorConfig struct {
 
 // HumanBehavior insan benzeri davranış simülatörü
 type HumanBehavior struct {
-	config *BehaviorConfig
-	rng    *rand.Rand
-	mu     sync.Mutex
+	config  *BehaviorConfig
+	profile *BehavioralProfile
+	rng     *rand.Rand
+	mu      sync.Mutex
 }
 
 // NewHumanBehavior yeni davranış simülatörü oluşturur
@@ -47,9 +51,41 @@ func NewHumanBehavior(config *BehaviorConfig) *HumanBehavior {
 		}
 	}
 	return &HumanBehavior{
-		config: config,
-		rng:    rand.New(rand.NewSource(time.Now().UnixNano())),
+		config:  config,
+		profile: nil,
+		rng:     rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
+}
+
+// NewHumanBehaviorWithProfile belirli bir davranış profili ile simülatör oluşturur
+func NewHumanBehaviorWithProfile(profile *BehavioralProfile) *HumanBehavior {
+	hb := &HumanBehavior{
+		config:  nil,
+		profile: profile,
+		rng:     rand.New(rand.NewSource(time.Now().UnixNano())),
+	}
+	
+	// Profilden BehaviorConfig oluştur
+	hb.config = profile.ToBehaviorConfig()
+	
+	return hb
+}
+
+// SetProfile davranış profili atar
+func (h *HumanBehavior) SetProfile(profile *BehavioralProfile) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	
+	h.profile = profile
+	h.config = profile.ToBehaviorConfig()
+}
+
+// GetProfile mevcut profili döner
+func (h *HumanBehavior) GetProfile() *BehavioralProfile {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	
+	return h.profile
 }
 
 // SimulatePageVisit sayfa ziyareti sırasında insan davranışı simüle eder
@@ -108,26 +144,64 @@ func (h *HumanBehavior) randomScroll(ctx context.Context) error {
 		return nil
 	}
 
+	// Profil bazlı scroll davranışı
 	scrollCount := h.randIntn(5) + 3
 	if scrollCount > 7 {
 		scrollCount = 7
 	}
+	
+	// Profil varsa scroll pattern'a göre ayarla
+	if h.profile != nil {
+		switch h.profile.ScrollPattern {
+		case ScrollAggressive:
+			scrollCount += 3
+		case ScrollSlow:
+			scrollCount = max(2, scrollCount-1)
+		}
+	}
+	
 	positions := h.generateScrollPositions(pageHeight, scrollCount)
 
-	for _, pos := range positions {
+	for i, pos := range positions {
 		script := fmt.Sprintf(`window.scrollTo({top: %d, behavior: 'smooth'})`, pos)
 		if err := chromedp.Evaluate(script, nil).Do(ctx); err != nil {
 			return err
 		}
-		delay := 500 + h.randIntn(1500)
+		
+		// Profil bazlı gecikme
+		delay := h.getScrollDelay()
+		
+		// Profil varsa yukarı scroll kontrolü
+		if h.profile != nil && i > 0 && h.profile.ShouldScrollReverse() {
+			upPos := max(0, pos-100-h.randIntn(200))
+			upScript := fmt.Sprintf(`window.scrollTo({top: %d, behavior: 'smooth'})`, upPos)
+			chromedp.Evaluate(upScript, nil).Do(ctx)
+			time.Sleep(delay / 2)
+		}
+		
 		select {
-		case <-time.After(time.Duration(delay) * time.Millisecond):
+		case <-time.After(delay):
 		case <-ctx.Done():
 			return ctx.Err()
 		}
 	}
 
 	return nil
+}
+
+// getScrollDelay profil bazlı scroll gecikmesi
+func (h *HumanBehavior) getScrollDelay() time.Duration {
+	if h.profile != nil {
+		// Profilin scroll pause değerini kullan ve varyasyon ekle
+		variation := float64(h.profile.ScrollPause) * 0.3
+		delay := float64(h.profile.ScrollPause) + (h.randFloat()*variation - variation/2)
+		if delay < 100 {
+			delay = 100
+		}
+		return time.Duration(delay)
+	}
+	
+	return time.Duration(500+h.randIntn(1500)) * time.Millisecond
 }
 
 func (h *HumanBehavior) generateScrollPositions(maxHeight, count int) []int {
@@ -149,9 +223,24 @@ func (h *HumanBehavior) randomMouseMovements(ctx context.Context) error {
 	startX, startY := h.randIntn(800), h.randIntn(500)
 	endX, endY := h.randIntn(800), h.randIntn(500)
 
-	points := h.generateBezierCurve(startX, startY, endX, endY, 15)
+	// Profil bazlı mouse davranışı
+	steps := 15
+	speedMultiplier := 1.0
+	
+	if h.profile != nil {
+		speedMultiplier = h.profile.GetMouseSpeedMultiplier()
+		// Mouse pattern'a göre adım sayısı ayarla
+		switch h.profile.MousePattern {
+		case MouseHesitant:
+			steps = 25
+		case MouseDirect:
+			steps = 10
+		}
+	}
 
-	for _, p := range points {
+	points := h.generateBezierCurve(startX, startY, endX, endY, steps)
+
+	for i, p := range points {
 		script := fmt.Sprintf(`
 			(function(){
 				var ev = new MouseEvent('mousemove', {clientX: %d, clientY: %d, bubbles: true});
@@ -161,7 +250,20 @@ func (h *HumanBehavior) randomMouseMovements(ctx context.Context) error {
 		if err := chromedp.Evaluate(script, nil).Do(ctx); err != nil {
 			return err
 		}
-		time.Sleep(8 * time.Millisecond)
+		
+		// Profil bazlı hız
+		delayMs := float64(8) / speedMultiplier
+		if delayMs < 2 {
+			delayMs = 2
+		}
+		delay := time.Duration(delayMs) * time.Millisecond
+		
+		// Profil varsa duraklama kontrolü
+		if h.profile != nil && h.profile.ShouldMousePause() && i > 0 && i < len(points)-1 {
+			time.Sleep(h.profile.GetDecisionPause())
+		}
+		
+		time.Sleep(delay)
 	}
 
 	return nil
@@ -246,6 +348,11 @@ func (h *HumanBehavior) maybeClickLink(ctx context.Context) error {
 	link := links[idx]
 	linkJSON, _ := json.Marshal(link)
 
+	// Profil varsa karar verme bekleme süresi ekle
+	if h.profile != nil {
+		time.Sleep(h.profile.GetDecisionPause())
+	}
+
 	script := fmt.Sprintf(`(function(){
 		var target = %s;
 		var as = document.querySelectorAll('a[href]');
@@ -255,4 +362,30 @@ func (h *HumanBehavior) maybeClickLink(ctx context.Context) error {
 		return false;
 	})();`, string(linkJSON))
 	return chromedp.Evaluate(script, nil).Do(ctx)
+}
+
+// ToBehaviorConfig BehavioralProfile'dan BehaviorConfig oluşturur
+func (bp *BehavioralProfile) ToBehaviorConfig() *BehaviorConfig {
+	// ReadingSpeed'e göre sayfa süresi hesapla
+	minDuration := time.Duration(1800/bp.ReadingSpeed) * time.Second
+	maxDuration := time.Duration(5400/bp.ReadingSpeed) * time.Second
+	
+	if minDuration < 2*time.Second {
+		minDuration = 2 * time.Second
+	}
+	if maxDuration < 10*time.Second {
+		maxDuration = 10 * time.Second
+	}
+	if maxDuration > 5*time.Minute {
+		maxDuration = 5 * time.Minute
+	}
+
+	return &BehaviorConfig{
+		MinPageDuration:      minDuration,
+		MaxPageDuration:      maxDuration,
+		ScrollProbability:    0.7 + (float64(bp.MouseSpeed) / 50),
+		MouseMoveProbability: 0.5 + (bp.MousePauseProb * 0.5),
+		ClickProbability:     0.2,
+		ReadingSpeed:         bp.ReadingSpeed,
+	}
 }

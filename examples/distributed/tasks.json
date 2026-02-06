@@ -1,0 +1,18 @@
+{
+  "urls": [
+    "https://example.com",
+    "https://example.org"
+  ],
+  "tasks": [
+    {
+      "url": "https://httpbin.org/get",
+      "session_id": "test-session-1",
+      "count": 5
+    },
+    {
+      "url": "https://httpbin.org/ip",
+      "session_id": "test-session-2",
+      "count": 3
+    }
+  ]
+}

@@ -127,11 +127,21 @@ func (h *HitVisitor) Close() {
 	h.allocCan()
 }
 
+// PERFORMANCE: Daha agresif resource blocking
 var blockTypes = map[network.ResourceType]bool{
-	network.ResourceTypeImage:      true,
-	network.ResourceTypeStylesheet: true,
-	network.ResourceTypeFont:       true,
-	network.ResourceTypeMedia:      true,
+	network.ResourceTypeImage:       true,
+	network.ResourceTypeStylesheet:  true,
+	network.ResourceTypeFont:        true,
+	network.ResourceTypeMedia:       true,
+	network.ResourceTypeOther:       true,
+	network.ResourceTypeXHR:         false, // Gerekli olabilir
+	// network.ResourceTypeFetch:       false, // chromedp'de yok
+}
+
+// PERFORMANCE: Gereksiz header'ları filtrele
+var blockedHeaders = map[string]bool{
+	"Accept-Language": false, // Spoof edilecek
+	"Referer":         false, // Özel referrer ayarlanacak
 }
 
 func (h *HitVisitor) VisitURL(ctx context.Context, urlStr string) error {
@@ -317,14 +327,48 @@ func (h *HitVisitor) VisitURL(ctx context.Context, urlStr string) error {
 
 	gtagScript := ""
 	if h.config.GtagID != "" {
-		gtagScript = `(function(){
-			var s=document.createElement('script');s.async=true;
-			s.src='https://www.googletagmanager.com/gtag/js?id=` + h.config.GtagID + `';
-			document.head.appendChild(s);
-			window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
-			gtag('js',new Date());
-			gtag('config','` + h.config.GtagID + `',{send_page_view:true});
-		})();`
+		// SECURITY FIX: Validate GtagID format to prevent XSS injection
+		// Valid GA4 format: G-XXXXXXXXXX or GT-XXXXXXXXXX (10-12 alphanumeric chars after prefix)
+		// Valid UA format: UA-XXXXXXXX-X (numeric with dashes)
+		gtagID := h.config.GtagID
+		isValidGtagID := false
+		
+		// Check GA4 format (G-XXXXXXXXXX or GT-XXXXXXXXXX)
+		if len(gtagID) >= 10 && len(gtagID) <= 15 {
+			if (strings.HasPrefix(gtagID, "G-") || strings.HasPrefix(gtagID, "GT-")) {
+				suffix := gtagID[strings.Index(gtagID, "-")+1:]
+				isValidGtagID = true
+				for _, c := range suffix {
+					if !((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) {
+						isValidGtagID = false
+						break
+					}
+				}
+			}
+		}
+		
+		// Check UA format (UA-XXXXXXXX-X)
+		if !isValidGtagID && len(gtagID) >= 10 && len(gtagID) <= 20 && strings.HasPrefix(gtagID, "UA-") {
+			isValidGtagID = true
+			for _, c := range gtagID[3:] {
+				if !((c >= '0' && c <= '9') || c == '-') {
+					isValidGtagID = false
+					break
+				}
+			}
+		}
+		
+		if isValidGtagID {
+			gtagScript = `(function(){
+				var s=document.createElement('script');s.async=true;
+				s.src='https://www.googletagmanager.com/gtag/js?id=` + gtagID + `';
+				document.head.appendChild(s);
+				window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
+				gtag('js',new Date());
+				gtag('config','` + gtagID + `',{send_page_view:true});
+			})();`
+		}
+		// If invalid GtagID, gtagScript remains empty (no injection)
 	}
 
 	// Stealth script - sayfa yüklenmeden ÖNCE (headless bypass)
@@ -471,6 +515,14 @@ func (h *HitVisitor) VisitURL(ctx context.Context, urlStr string) error {
 	}
 
 	elapsed := time.Since(start).Milliseconds()
+	
+	// SECURITY FIX: Proxy bilgisini extract et (callback için)
+	proxyStr := ""
+	if h.config.ProxyURL != "" {
+		if parsedURL, err := url.Parse(h.config.ProxyURL); err == nil {
+			proxyStr = parsedURL.Host
+		}
+	}
 
 	if navErr != nil {
 		h.reporter.Record(reporter.HitRecord{
@@ -478,6 +530,7 @@ func (h *HitVisitor) VisitURL(ctx context.Context, urlStr string) error {
 			URL:       urlStr,
 			Error:     navErr.Error(),
 			UserAgent: ua,
+			Proxy:     proxyStr,
 		})
 		return navErr
 	}
@@ -488,6 +541,7 @@ func (h *HitVisitor) VisitURL(ctx context.Context, urlStr string) error {
 		StatusCode:   200,
 		ResponseTime: elapsed,
 		UserAgent:    ua,
+		Proxy:        proxyStr,
 	})
 	return nil
 }

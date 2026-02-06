@@ -22,6 +22,7 @@ type HitRecord struct {
 	StatusCode   int       `json:"status_code"`
 	ResponseTime int64     `json:"response_time_ms"`
 	UserAgent    string    `json:"user_agent"`
+	Proxy        string    `json:"proxy,omitempty"` // SECURITY FIX: Proxy bilgisi eklendi
 	Error        string    `json:"error,omitempty"`
 }
 
@@ -38,6 +39,9 @@ type Metrics struct {
 	EndTime         time.Time   `json:"end_time"`
 }
 
+// HitCallback her hit tamamlandığında çağrılır (anlık UI güncellemesi için)
+type HitCallback func(url string, duration time.Duration, success bool, proxy string)
+
 type Reporter struct {
 	mu            sync.RWMutex
 	records       []HitRecord
@@ -49,6 +53,7 @@ type Reporter struct {
 	locale        string // "tr" veya "en"
 	closed        bool   // kanal kapatıldı mı
 	recordsFlushed int   // PERFORMANCE: Track flushed records count
+	hitCallback   HitCallback // SECURITY FIX: Anlık hit bildirimi için callback
 }
 
 func New(outputDir, format string, domain string) *Reporter {
@@ -73,10 +78,16 @@ func NewWithLocale(outputDir, format string, domain, locale string) *Reporter {
 	return r
 }
 
-func (r *Reporter) Record(h HitRecord) {
+// SetHitCallback hit callback'ini ayarlar (server tarafından çağrılır)
+func (r *Reporter) SetHitCallback(cb HitCallback) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	r.hitCallback = cb
+}
 
+func (r *Reporter) Record(h HitRecord) {
+	r.mu.Lock()
+	
 	// PERFORMANCE FIX: Prevent unbounded memory growth
 	// When records exceed maxRecords, keep only the last half
 	if len(r.records) >= maxRecords {
@@ -88,10 +99,9 @@ func (r *Reporter) Record(h HitRecord) {
 
 	r.records = append(r.records, h)
 	r.metrics.TotalHits++
-
-	if h.Error != "" {
-		r.metrics.FailedHits++
-	} else {
+	
+	success := h.Error == ""
+	if success {
 		r.metrics.SuccessHits++
 		r.metrics.StatusCodes[h.StatusCode]++
 
@@ -104,6 +114,19 @@ func (r *Reporter) Record(h HitRecord) {
 
 		total := float64(r.metrics.SuccessHits-1)*r.metrics.AvgResponseTime + float64(h.ResponseTime)
 		r.metrics.AvgResponseTime = total / float64(r.metrics.SuccessHits)
+	} else {
+		r.metrics.FailedHits++
+	}
+	
+	// SECURITY FIX: Anlık hit bildirimi için callback çağır (lock dışında)
+	cb := r.hitCallback
+	proxyStr := h.Proxy
+	r.mu.Unlock()
+	
+	// Callback'i lock dışında çağır (deadlock önleme)
+	if cb != nil {
+		duration := time.Duration(h.ResponseTime) * time.Millisecond
+		cb(h.URL, duration, success, proxyStr)
 	}
 }
 

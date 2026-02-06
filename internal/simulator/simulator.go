@@ -186,6 +186,11 @@ func (s *Simulator) Run(ctx context.Context) error {
 	if workers <= 0 {
 		workers = 10
 	}
+	// PERFORMANCE: Worker sınırı, sistem kaynaklarını korumak için
+	if workers > 50 {
+		workers = 50
+		s.reporter.Log("⚠️ MaxConcurrentVisits 50 ile sınırlandırıldı (kaynak koruması)")
+	}
 	hpm := s.cfg.HitsPerMinute
 	if hpm <= 0 {
 		hpm = 35
@@ -239,9 +244,14 @@ func (s *Simulator) Run(ctx context.Context) error {
 	var wg sync.WaitGroup
 
 	if s.livePool == nil {
-		// Tek proxy / proxy yok: tek HitVisitor, sem ile eşzamanlı ziyaret
-		sem := make(chan struct{}, workers)
+		// PERFORMANCE: Kanal bazlı semaphore (daha az memory)
 		slotFreed := make(chan struct{}, workers)
+		
+		// PERFORMANCE: Pre-allocate slotFreed buffer'ı
+		for i := 0; i < workers; i++ {
+			slotFreed <- struct{}{}
+		}
+		// PERFORMANCE: Ziyaret fonksiyonu - goroutine reuse ile
 		startVisit := func() {
 			if err := tb.Take(ctx); err != nil {
 				return
@@ -250,13 +260,18 @@ func (s *Simulator) Run(ctx context.Context) error {
 				return
 			}
 			select {
-			case sem <- struct{}{}:
+			case <-slotFreed:
 				wg.Add(1)
 				page := s.pickPage()
 				go func(url string) {
 					defer wg.Done()
-					defer func() { <-sem; slotFreed <- struct{}{} }()
-					if err := s.hitVisitor.VisitURL(ctx, url); err != nil {
+					defer func() { slotFreed <- struct{}{} }()
+					
+					// PERFORMANCE: Visit timeout ile sınırla
+					visitCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+					defer cancel()
+					
+					if err := s.hitVisitor.VisitURL(visitCtx, url); err != nil {
 						s.visitErrAgg.add(s.reporter, url, err)
 					} else {
 						n := atomic.AddInt64(&hitCount, 1)
@@ -270,15 +285,10 @@ func (s *Simulator) Run(ctx context.Context) error {
 			default:
 			}
 		}
-		for i := 0; i < workers; i++ {
-			slotFreed <- struct{}{}
-		}
-		deadlineTimer := time.NewTimer(time.Until(deadline))
-		defer func() {
-			if !deadlineTimer.Stop() {
-				select { case <-deadlineTimer.C: default: }
-			}
-		}()
+		// PERFORMANCE: Daha verimli event loop
+		ticker := time.NewTicker(100 * time.Millisecond)
+		defer ticker.Stop()
+		
 		for {
 			select {
 			case <-ctx.Done():
@@ -287,17 +297,20 @@ func (s *Simulator) Run(ctx context.Context) error {
 				wg.Wait()
 				s.finish()
 				return ctx.Err()
-			case <-deadlineTimer.C:
-				s.reporter.LogT(i18n.MsgDeadline)
-				tb.Stop()
-				wg.Wait()
-				s.finish()
-				return nil
-			case <-slotFreed:
+			case <-ticker.C:
 				if time.Now().After(deadline) {
-					continue
+					s.reporter.LogT(i18n.MsgDeadline)
+					tb.Stop()
+					wg.Wait()
+					s.finish()
+					return nil
 				}
-				go startVisit()
+				// PERFORMANCE: Boşta slot varsa yeni ziyaret başlat
+				select {
+				case <-slotFreed:
+					go startVisit()
+				default:
+				}
 			}
 		}
 	}

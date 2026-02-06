@@ -34,20 +34,28 @@ type Checker struct {
 // NewChecker varsayılan ayarlarla checker oluşturur
 func NewChecker(workers int) *Checker {
 	if workers <= 0 {
-		workers = 25
+		workers = 10 // SECURITY FIX: Default 25'ten 10'a düşürüldü, connection exhausting riski
+	}
+	if workers > 50 {
+		workers = 50 // SECURITY FIX: Hard limit, sistem kaynaklarını korumak için
 	}
 	return &Checker{
 		Client: &http.Client{
 			Timeout: 15 * time.Second,
 			Transport: &http.Transport{
-				MaxIdleConns:        100,
-				IdleConnTimeout:     10 * time.Second,
+				// PERFORMANCE: Daha iyi connection pooling
+				MaxIdleConns:        50,
+				MaxIdleConnsPerHost: 10,
+				MaxConnsPerHost:     20,
+				IdleConnTimeout:     30 * time.Second,
 				DisableCompression:  true,
+				// PERFORMANCE: Keep-alive ayarları
+				ForceAttemptHTTP2:   false, // HTTP/1.1 daha stabil
 			},
 		},
-		TestURL:          "", // ip-api kullan
-		Workers:          workers,
-		TimeoutPerProxy:  12 * time.Second,
+		TestURL:         "", // ip-api kullan
+		Workers:         workers,
+		TimeoutPerProxy: 10 * time.Second, // 12'den 10'a düşürüldü
 	}
 }
 
@@ -132,9 +140,26 @@ func (c *Checker) RunSlice(ctx context.Context, queue []*ProxyConfig, liveChan c
 	if liveChan == nil {
 		return
 	}
+	
+	// PERFORMANCE: Batch processing ve adaptive rate limiting
 	sem := make(chan struct{}, c.Workers)
 	var wg sync.WaitGroup
-	for _, p := range queue {
+	
+	// PERFORMANCE: Her batch arasında kısa pause, sistem yükünü azaltmak için
+	batchSize := c.Workers * 2
+	for i, p := range queue {
+		// Batch boundary'de kısa pause
+		if i > 0 && i%batchSize == 0 {
+			select {
+			case <-ctx.Done():
+				wg.Wait()
+				close(liveChan)
+				return
+			case <-time.After(100 * time.Millisecond):
+				// Kısa nefes alma süresi
+			}
+		}
+		
 		select {
 		case <-ctx.Done():
 			wg.Wait()
@@ -142,6 +167,7 @@ func (c *Checker) RunSlice(ctx context.Context, queue []*ProxyConfig, liveChan c
 			return
 		default:
 		}
+		
 		sem <- struct{}{}
 		wg.Add(1)
 		go func(proxy *ProxyConfig) {
