@@ -90,8 +90,14 @@ func (h *HumanBehavior) GetProfile() *BehavioralProfile {
 
 // SimulatePageVisit sayfa ziyareti sırasında insan davranışı simüle eder
 func (h *HumanBehavior) SimulatePageVisit(ctx context.Context, pageLength int) error {
-	// Okuma süresi
+	// Okuma süresi — config sınırlarına clamp et
 	readTime := h.calculateReadingTime(pageLength)
+	if h.config.MaxPageDuration > 0 && readTime > h.config.MaxPageDuration {
+		readTime = h.config.MaxPageDuration
+	}
+	if h.config.MinPageDuration > 0 && readTime < h.config.MinPageDuration {
+		readTime = h.config.MinPageDuration
+	}
 
 	// Scroll (olasılıkla)
 	if h.randFloat() < h.config.ScrollProbability {
@@ -201,7 +207,7 @@ func (h *HumanBehavior) getScrollDelay() time.Duration {
 		return time.Duration(delay)
 	}
 	
-	return time.Duration(500+h.randIntn(1500)) * time.Millisecond
+	return time.Duration(300+h.randIntn(500)) * time.Millisecond
 }
 
 func (h *HumanBehavior) generateScrollPositions(maxHeight, count int) []int {
@@ -218,7 +224,7 @@ func (h *HumanBehavior) generateScrollPositions(maxHeight, count int) []int {
 	return positions
 }
 
-// randomMouseMovements Bezier curve ile doğal mouse hareketi
+// randomMouseMovements Bezier curve ile doğal mouse hareketi — single batched CDP call
 func (h *HumanBehavior) randomMouseMovements(ctx context.Context) error {
 	startX, startY := h.randIntn(800), h.randIntn(500)
 	endX, endY := h.randIntn(800), h.randIntn(500)
@@ -226,10 +232,9 @@ func (h *HumanBehavior) randomMouseMovements(ctx context.Context) error {
 	// Profil bazlı mouse davranışı
 	steps := 15
 	speedMultiplier := 1.0
-	
+
 	if h.profile != nil {
 		speedMultiplier = h.profile.GetMouseSpeedMultiplier()
-		// Mouse pattern'a göre adım sayısı ayarla
 		switch h.profile.MousePattern {
 		case MouseHesitant:
 			steps = 25
@@ -240,31 +245,42 @@ func (h *HumanBehavior) randomMouseMovements(ctx context.Context) error {
 
 	points := h.generateBezierCurve(startX, startY, endX, endY, steps)
 
-	for i, p := range points {
-		script := fmt.Sprintf(`
-			(function(){
-				var ev = new MouseEvent('mousemove', {clientX: %d, clientY: %d, bubbles: true});
-				document.dispatchEvent(ev);
-			})();
-		`, p.X, p.Y)
-		if err := chromedp.Evaluate(script, nil).Do(ctx); err != nil {
-			return err
-		}
-		
-		// Profil bazlı hız
-		delayMs := float64(8) / speedMultiplier
-		if delayMs < 2 {
-			delayMs = 2
-		}
-		delay := time.Duration(delayMs) * time.Millisecond
-		
-		// Profil varsa duraklama kontrolü
-		if h.profile != nil && h.profile.ShouldMousePause() && i > 0 && i < len(points)-1 {
-			time.Sleep(h.profile.GetDecisionPause())
-		}
-		
-		time.Sleep(delay)
+	// Profil bazlı gecikme (ms)
+	delayMs := int(float64(8) / speedMultiplier)
+	if delayMs < 2 {
+		delayMs = 2
 	}
+
+	// Serialize all points to JSON and dispatch in a single JS call with setTimeout
+	pointsJSON, err := json.Marshal(points)
+	if err != nil {
+		return err
+	}
+
+	script := fmt.Sprintf(`(function(){
+		var pts = %s;
+		var delay = %d;
+		for (var i = 0; i < pts.length; i++) {
+			(function(p, d) {
+				setTimeout(function() {
+					var ev = new MouseEvent('mousemove', {clientX: p.X, clientY: p.Y, bubbles: true});
+					document.dispatchEvent(ev);
+				}, d);
+			})(pts[i], i * delay);
+		}
+	})();`, string(pointsJSON), delayMs)
+
+	if err := chromedp.Evaluate(script, nil).Do(ctx); err != nil {
+		return err
+	}
+
+	// Wait for all mouse events to dispatch
+	totalDuration := time.Duration(len(points)*delayMs) * time.Millisecond
+	// Add profile pause if applicable
+	if h.profile != nil {
+		totalDuration += h.profile.GetDecisionPause()
+	}
+	time.Sleep(totalDuration)
 
 	return nil
 }

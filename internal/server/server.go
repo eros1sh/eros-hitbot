@@ -52,6 +52,7 @@ type Server struct {
 	hub             *Hub
 	metrics         *metrics.MetricsCollector
 	metricsWS       *MetricsWebSocket
+	done            chan struct{} // BUG FIX #6/#7: Background goroutine'leri durdurmak için
 }
 
 // Hub WebSocket ve SSE abonelerine broadcast (status + log)
@@ -164,26 +165,48 @@ func New() (*Server, error) {
 		hub:          NewHub(),
 		metrics:      metricsCollector,
 		metricsWS:    NewMetricsWebSocket(metricsCollector),
+		done:         make(chan struct{}),
 	}
 	go s.broadcastStatusLoop()
 	go s.metricsUpdateLoop()
 	return s, nil
 }
 
+// BUG FIX #6: done kanalı ile goroutine leak önlenir
 func (s *Server) broadcastStatusLoop() {
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
-	for range ticker.C {
-		s.hub.Broadcast("status", s.buildStatusMap())
+	for {
+		select {
+		case <-ticker.C:
+			s.hub.Broadcast("status", s.buildStatusMap())
+		case <-s.done:
+			return
+		}
 	}
 }
 
-// metricsUpdateLoop periodically updates metrics from simulator state
+// BUG FIX #7: done kanalı ile goroutine leak önlenir
 func (s *Server) metricsUpdateLoop() {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
-	for range ticker.C {
-		s.updateMetricsFromState()
+	for {
+		select {
+		case <-ticker.C:
+			s.updateMetricsFromState()
+		case <-s.done:
+			return
+		}
+	}
+}
+
+// Shutdown background goroutine'leri durdurur
+func (s *Server) Shutdown() {
+	select {
+	case <-s.done:
+		// Zaten kapatılmış
+	default:
+		close(s.done)
 	}
 }
 
@@ -247,12 +270,18 @@ func (s *Server) RecordSessionEvent(sessionID string, action string, duration ti
 		})
 	}
 
+	// BUG FIX #11: Atomic read-modify-write - race condition önleme
 	switch action {
 	case "started":
-		s.metrics.SetActiveSessions(s.metrics.GetSnapshot().ActiveSessions + 1)
+		s.mu.Lock()
+		current := s.metrics.GetSnapshot().ActiveSessions
+		s.metrics.SetActiveSessions(current + 1)
+		s.mu.Unlock()
 	case "ended":
-		// CODE FIX: Use renamed maxInt64 function
-		s.metrics.SetActiveSessions(maxInt64(0, s.metrics.GetSnapshot().ActiveSessions-1))
+		s.mu.Lock()
+		current := s.metrics.GetSnapshot().ActiveSessions
+		s.metrics.SetActiveSessions(maxInt64(0, current-1))
+		s.mu.Unlock()
 	case "bounce":
 		s.metrics.RecordBounce()
 	}
@@ -1012,8 +1041,10 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		
 		s.cfg.ApplyDefaults()
 		s.cfg.ComputeDerived()
+		// BUG FIX #3: Config kopyasını al - lock dışında save yapmak için
+		cfgCopy := *s.cfg
 		s.mu.Unlock()
-		saveConfigToFile(s.cfg)
+		saveConfigToFile(&cfgCopy)
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 		return
@@ -1253,12 +1284,12 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
-	// SECURITY FIX: Restrict CORS to localhost only instead of wildcard
+	// BUG FIX #12: Boş origin durumunda geçersiz header gönderilmesini önle
 	origin := r.Header.Get("Origin")
-	if origin == "" || strings.HasPrefix(origin, "http://127.0.0.1") ||
-	   strings.HasPrefix(origin, "http://localhost") ||
-	   strings.HasPrefix(origin, "https://127.0.0.1") ||
-	   strings.HasPrefix(origin, "https://localhost") {
+	if origin != "" && (strings.HasPrefix(origin, "http://127.0.0.1") ||
+		strings.HasPrefix(origin, "http://localhost") ||
+		strings.HasPrefix(origin, "https://127.0.0.1") ||
+		strings.HasPrefix(origin, "https://localhost")) {
 		w.Header().Set("Access-Control-Allow-Origin", origin)
 	}
 	flusher, ok := w.(http.Flusher)
@@ -1432,7 +1463,26 @@ func (s *Server) handleProxyTest(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Host and port required", 400)
 		return
 	}
-	
+
+	// BUG FIX #17: SSRF önleme - internal IP'leri engelle
+	blockedPrefixes := []string{"127.", "10.", "172.16.", "172.17.", "172.18.", "172.19.",
+		"172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.", "172.26.",
+		"172.27.", "172.28.", "172.29.", "172.30.", "172.31.", "192.168.", "0.", "169.254."}
+	blockedHosts := []string{"localhost", "::1", "0.0.0.0"}
+	hostLower := strings.ToLower(strings.TrimSpace(body.Host))
+	for _, blocked := range blockedHosts {
+		if hostLower == blocked {
+			http.Error(w, "Internal/loopback addresses are not allowed", 400)
+			return
+		}
+	}
+	for _, prefix := range blockedPrefixes {
+		if strings.HasPrefix(hostLower, prefix) {
+			http.Error(w, "Internal/private IP addresses are not allowed", 400)
+			return
+		}
+	}
+
 	// Proxy test - basit HTTP bağlantı testi
 	proxyURL := fmt.Sprintf("http://%s:%d", body.Host, body.Port)
 	if body.User != "" {

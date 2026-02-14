@@ -127,22 +127,6 @@ func (h *HitVisitor) Close() {
 	h.allocCan()
 }
 
-// PERFORMANCE: Daha agresif resource blocking
-var blockTypes = map[network.ResourceType]bool{
-	network.ResourceTypeImage:       true,
-	network.ResourceTypeStylesheet:  true,
-	network.ResourceTypeFont:        true,
-	network.ResourceTypeMedia:       true,
-	network.ResourceTypeOther:       true,
-	network.ResourceTypeXHR:         false, // Gerekli olabilir
-	// network.ResourceTypeFetch:       false, // chromedp'de yok
-}
-
-// PERFORMANCE: Gereksiz header'ları filtrele
-var blockedHeaders = map[string]bool{
-	"Accept-Language": false, // Spoof edilecek
-	"Referer":         false, // Özel referrer ayarlanacak
-}
 
 func (h *HitVisitor) VisitURL(ctx context.Context, urlStr string) error {
 	// Cihaz emülasyonu: DeviceType ve DeviceBrands'e göre cihaz seç
@@ -169,12 +153,13 @@ func (h *HitVisitor) VisitURL(ctx context.Context, urlStr string) error {
 			ua = useragent.Random()
 		}
 	}
-	
+
 	var advFP *fingerprint.AdvancedFingerprint
 	var fp fingerprint.FP
-	
+
 	if deviceProfile != nil {
-		// Cihaz profilinden fingerprint oluştur
+		// BUG FIX #9: Fingerprint'te sabit dil yerine rastgele dil havuzu kullan
+		randomFP := fingerprint.GenerateAdvancedFingerprint()
 		advFP = &fingerprint.AdvancedFingerprint{
 			UserAgent:           deviceProfile.UserAgent,
 			Platform:            deviceProfile.Platform,
@@ -182,16 +167,16 @@ func (h *HitVisitor) VisitURL(ctx context.Context, urlStr string) error {
 			ScreenHeight:        deviceProfile.ScreenHeight,
 			ScreenPixelRatio:    deviceProfile.PixelRatio,
 			MaxTouchPoints:      deviceProfile.MaxTouchPoints,
-			Language:            "tr-TR",
-			Languages:           []string{"tr-TR", "tr", "en"},
-			HardwareConcurrency: 8,
-			DeviceMemory:        8,
+			Language:            randomFP.Language,
+			Languages:           randomFP.Languages,
+			HardwareConcurrency: randomFP.HardwareConcurrency,
+			DeviceMemory:        randomFP.DeviceMemory,
 			ScreenColorDepth:    24,
 			AvailWidth:          deviceProfile.ScreenWidth,
 			AvailHeight:         deviceProfile.ScreenHeight - 40,
-			Timezone:            "Europe/Istanbul",
-			WebGLVendor:         "Google Inc.",
-			WebGLRenderer:       "ANGLE (Intel, Intel(R) UHD Graphics Direct3D11 vs_5_0 ps_5_0)",
+			Timezone:            randomFP.Timezone,
+			WebGLVendor:         randomFP.WebGLVendor,
+			WebGLRenderer:       randomFP.WebGLRenderer,
 		}
 		fp = fingerprint.FP{
 			Platform:     advFP.Platform,
@@ -261,9 +246,6 @@ func (h *HitVisitor) VisitURL(ctx context.Context, urlStr string) error {
 		stealthCfg.AvailHeight = stealthCfg.ScreenHeight - 40
 	}
 	
-	// Mobil cihaz için touch desteği
-	_ = isMobile // Kullanılacak
-
 	browserOpts := []chromedp.ContextOption{
 		chromedp.WithLogf(func(string, ...interface{}) {}),
 	}
@@ -280,6 +262,19 @@ func (h *HitVisitor) VisitURL(ctx context.Context, urlStr string) error {
 
 	start := time.Now()
 	authDone := make(chan struct{})
+
+	// BUG FIX #10: Gerçek HTTP status kodunu yakala
+	var realStatusCode int
+	var statusMu sync.Mutex
+	chromedp.ListenTarget(tabCtx, func(ev interface{}) {
+		if resp, ok := ev.(*network.EventResponseReceived); ok {
+			if resp.Type == network.ResourceTypeDocument {
+				statusMu.Lock()
+				realStatusCode = int(resp.Response.Status)
+				statusMu.Unlock()
+			}
+		}
+	})
 
 	// Proxy auth (proxy kullanıcı/şifre varsa)
 	if h.config.ProxyUser != "" || h.config.ProxyPass != "" {
@@ -302,18 +297,32 @@ func (h *HitVisitor) VisitURL(ctx context.Context, urlStr string) error {
 		})
 	}
 
+	// Resource blocking: block heavy resources but allow GA4 tracking requests through
 	chromedp.ListenTarget(tabCtx, func(ev interface{}) {
 		if ev, ok := ev.(*fetch.EventRequestPaused); ok {
 			go func() {
 				rt := ev.ResourceType
-				// Ana belge ve script asla bloklama; yanlışlıkla sayfa yükünü kırma
-				if rt == network.ResourceTypeDocument || rt == network.ResourceTypeScript || rt == "" {
+				// Documents, scripts, XHR always pass through (GA4 beacons, gtag.js, etc.)
+				if rt == network.ResourceTypeDocument || rt == network.ResourceTypeScript ||
+					rt == network.ResourceTypeXHR || rt == "" {
 					_ = chromedp.Run(tabCtx, fetch.ContinueRequest(ev.RequestID))
 					return
 				}
-				if blockTypes[rt] {
+				// Block heavy resources: images (except GA4 collect pixels), stylesheets, fonts, media
+				switch rt {
+				case network.ResourceTypeStylesheet, network.ResourceTypeFont, network.ResourceTypeMedia:
 					_ = chromedp.Run(tabCtx, fetch.FailRequest(ev.RequestID, network.ErrorReasonBlockedByClient))
-				} else {
+				case network.ResourceTypeImage:
+					// Allow GA4/analytics tracking pixels through
+					reqURL := ev.Request.URL
+					if strings.Contains(reqURL, "google-analytics.com") ||
+						strings.Contains(reqURL, "googletagmanager.com") ||
+						strings.Contains(reqURL, "analytics.google.com") {
+						_ = chromedp.Run(tabCtx, fetch.ContinueRequest(ev.RequestID))
+					} else {
+						_ = chromedp.Run(tabCtx, fetch.FailRequest(ev.RequestID, network.ErrorReasonBlockedByClient))
+					}
+				default:
 					_ = chromedp.Run(tabCtx, fetch.ContinueRequest(ev.RequestID))
 				}
 			}()
@@ -440,7 +449,7 @@ func (h *HitVisitor) VisitURL(ctx context.Context, urlStr string) error {
 	}
 	navActions = append(navActions,
 		chromedp.WaitReady("body", chromedp.ByQuery),
-		chromedp.Sleep(1500*time.Millisecond),
+		chromedp.Sleep(500*time.Millisecond),
 	)
 	navErr := chromedp.Run(tabCtx, navActions...)
 
@@ -449,32 +458,19 @@ func (h *HitVisitor) VisitURL(ctx context.Context, urlStr string) error {
 			// gtag script hatası kritik değil, devam et
 			_ = err
 		}
-		if err := chromedp.Run(tabCtx, chromedp.Sleep(1500*time.Millisecond)); err != nil {
+		if err := chromedp.Run(tabCtx, chromedp.Sleep(1000*time.Millisecond)); err != nil {
 			_ = err
 		}
 	}
 
-	// Stealth scriptleri sayfa yüklendikten sonra tekrar enjekte et (bazı siteler için gerekli)
-	if navErr == nil {
-		if err := stealth.InjectStealthScripts(tabCtx, stealthCfg); err != nil {
-			// Stealth script hatası kritik değil, devam et
-			_ = err
-		}
-	}
+	// Stealth scripts already injected via AddScriptToEvaluateOnNewDocument (runs before page load).
+	// Re-injection removed — redundant 14 CDP round-trips eliminated.
 
 	if navErr == nil {
-		// Canvas fingerprint (sayfa yüklendikten sonra)
+		// Canvas/WebGL/Audio fingerprint — single batched CDP call
 		if h.config.CanvasFingerprint {
 			cf := canvas.GenerateFingerprint()
-			if err := cf.InjectCanvasNoise(tabCtx); err != nil {
-				_ = err
-			}
-			if err := cf.InjectWebGLFingerprint(tabCtx); err != nil {
-				_ = err
-			}
-			if err := cf.InjectAudioFingerprint(tabCtx); err != nil {
-				_ = err
-			}
+			_ = cf.InjectAll(tabCtx)
 		}
 
 		// Scroll davranışı
@@ -499,19 +495,19 @@ func (h *HitVisitor) VisitURL(ctx context.Context, urlStr string) error {
 			}
 		}
 
-		// İnsan davranışı (kısa)
-		hum := behavior.NewHumanBehavior(&behavior.BehaviorConfig{
-			MinPageDuration: 1 * time.Second,
-			MaxPageDuration: 3 * time.Second,
-			ScrollProbability: 0.5, // Zaten scroll yaptık
-			MouseMoveProbability: 0.5,
-			ClickProbability: 0,
-		})
-		var pageLen int
-		if err := chromedp.Evaluate(`document.body ? document.body.innerText.length : 0`, &pageLen).Do(tabCtx); err != nil {
-			pageLen = 0
+		// BUG FIX #21: Mobil/masaüstü davranışını cihaz tipine göre ayarla
+		mouseMoveProb := 0.5
+		if isMobile {
+			mouseMoveProb = 0.0 // Mobil cihazlarda mouse hareketi yok
 		}
-		hum.SimulatePageVisit(tabCtx, pageLen)
+		hum := behavior.NewHumanBehavior(&behavior.BehaviorConfig{
+			MinPageDuration:      1 * time.Second,
+			MaxPageDuration:      3 * time.Second,
+			ScrollProbability:    0.5,
+			MouseMoveProbability: mouseMoveProb,
+			ClickProbability:     0,
+		})
+		hum.SimulatePageVisit(tabCtx, 0)
 	}
 
 	elapsed := time.Since(start).Milliseconds()
@@ -535,10 +531,17 @@ func (h *HitVisitor) VisitURL(ctx context.Context, urlStr string) error {
 		return navErr
 	}
 
+	// BUG FIX #10: Gerçek status kodu kullan
+	statusMu.Lock()
+	statusCode := realStatusCode
+	statusMu.Unlock()
+	if statusCode == 0 {
+		statusCode = 200 // Fallback - event yakalanmadıysa
+	}
 	h.reporter.Record(reporter.HitRecord{
 		Timestamp:    time.Now(),
 		URL:          urlStr,
-		StatusCode:   200,
+		StatusCode:   statusCode,
 		ResponseTime: elapsed,
 		UserAgent:    ua,
 		Proxy:        proxyStr,

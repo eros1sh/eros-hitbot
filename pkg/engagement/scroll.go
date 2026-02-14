@@ -69,7 +69,7 @@ func scrollAsReader(ctx context.Context, pageHeight, wpm int) error {
 		scrollPercent := float64(i) / float64(scrollSteps)
 		scrollTo := int(float64(pageHeight) * scrollPercent * 0.95)
 		chromedp.Evaluate(fmt.Sprintf(`window.scrollTo({top:%d,behavior:'smooth'})`, scrollTo), nil).Do(ctx)
-		time.Sleep(time.Duration(1500+engRandInt(1000)) * time.Millisecond)
+		time.Sleep(time.Duration(500+engRandInt(500)) * time.Millisecond)
 	}
 	return nil
 }
@@ -78,22 +78,12 @@ func scrollGradual(ctx context.Context, pageHeight int, pausePoints []int) error
 	if len(pausePoints) == 0 {
 		pausePoints = []int{25, 50, 75}
 	}
-	currentScroll := 0
+	// Batch scroll: single JS call per pause point with smooth behavior, then Go-side sleep
 	for _, pct := range pausePoints {
 		targetScroll := pageHeight * pct / 100
-		steps := (targetScroll - currentScroll) / 100
-		if steps <= 0 {
-			steps = 1
-		}
-		for i := 0; i < steps && currentScroll < targetScroll; i++ {
-			currentScroll += 100
-			if currentScroll > pageHeight {
-				currentScroll = pageHeight
-			}
-			chromedp.Evaluate(fmt.Sprintf(`window.scrollTo(0,%d)`, currentScroll), nil).Do(ctx)
-			time.Sleep(50 * time.Millisecond)
-		}
-		time.Sleep(time.Duration(1000+engRandInt(2000)) * time.Millisecond)
+		chromedp.Evaluate(fmt.Sprintf(`window.scrollTo({top:%d,behavior:'smooth'})`, targetScroll), nil).Do(ctx)
+		// Smooth scroll animation time (~300ms) + reading pause
+		time.Sleep(time.Duration(400+engRandInt(600)) * time.Millisecond)
 	}
 	return nil
 }

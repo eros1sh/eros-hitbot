@@ -29,6 +29,47 @@ func GenerateFingerprint() *CanvasFingerprint {
 	}
 }
 
+// InjectAll injects canvas noise, WebGL fingerprint, and audio noise in a single CDP call.
+func (cf *CanvasFingerprint) InjectAll(ctx context.Context) error {
+	vendor := escapeJS(cf.WebGLVendor)
+	renderer := escapeJS(cf.WebGLRenderer)
+	script := fmt.Sprintf(`(function(){
+		var origGetImageData = CanvasRenderingContext2D.prototype.getImageData;
+		var noise = %f;
+		CanvasRenderingContext2D.prototype.getImageData = function() {
+			var imageData = origGetImageData.apply(this, arguments);
+			var data = imageData.data;
+			for (var i = 0; i < data.length; i += 4) {
+				data[i] = Math.max(0, Math.min(255, data[i] + Math.floor((Math.random()-0.5)*noise)));
+				data[i+1] = Math.max(0, Math.min(255, data[i+1] + Math.floor((Math.random()-0.5)*noise)));
+				data[i+2] = Math.max(0, Math.min(255, data[i+2] + Math.floor((Math.random()-0.5)*noise)));
+			}
+			return imageData;
+		};
+		var getParam = WebGLRenderingContext.prototype.getParameter;
+		WebGLRenderingContext.prototype.getParameter = function(param) {
+			if (param === 37445) return '%s';
+			if (param === 37446) return '%s';
+			return getParam.apply(this, arguments);
+		};
+		var AudioCtx = window.AudioContext || window.webkitAudioContext;
+		if (AudioCtx) {
+			var nativeCreate = AudioContext.prototype.createOscillator;
+			var audioNoise = %f;
+			AudioContext.prototype.createOscillator = function() {
+				var osc = nativeCreate.apply(this, arguments);
+				var nativeStart = osc.start;
+				osc.start = function() {
+					osc.frequency.value += (Math.random()-0.5)*audioNoise;
+					return nativeStart.apply(this, arguments);
+				};
+				return osc;
+			};
+		}
+	})();`, cf.CanvasNoise, vendor, renderer, cf.AudioNoise)
+	return chromedp.Evaluate(script, nil).Do(ctx)
+}
+
 // InjectCanvasNoise injects canvas fingerprinting noise (page load öncesi script)
 func (cf *CanvasFingerprint) InjectCanvasNoise(ctx context.Context) error {
 	script := fmt.Sprintf(`(function(){

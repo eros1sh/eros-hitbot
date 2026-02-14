@@ -550,9 +550,16 @@ func (c *Config) ApplyDefaults() {
 	// veya NewConfig() fonksiyonu ile başlatılmalı
 	// Şimdilik bu mantığı kaldırıyoruz - kullanıcı config'den ayarlamalı
 	
-	c.TargetDomain = strings.TrimSpace(strings.TrimPrefix(c.TargetDomain, "https://"))
+	// Domain'den scheme ve trailing slash temizle, path varsa koru
+	c.TargetDomain = strings.TrimSpace(c.TargetDomain)
+	c.TargetDomain = strings.TrimPrefix(c.TargetDomain, "https://")
 	c.TargetDomain = strings.TrimPrefix(c.TargetDomain, "http://")
+	c.TargetDomain = strings.TrimPrefix(c.TargetDomain, "//")
 	c.TargetDomain = strings.TrimSuffix(c.TargetDomain, "/")
+	// Path varsa sadece domain kısmını al
+	if idx := strings.Index(c.TargetDomain, "/"); idx > 0 {
+		c.TargetDomain = c.TargetDomain[:idx]
+	}
 }
 
 // ComputeDerived Türetilmiş değerleri hesaplar

@@ -46,13 +46,16 @@ type AdvancedFingerprint struct {
 	OSVersion           string
 }
 
-var advRng = mrand.New(mrand.NewSource(time.Now().UnixNano()))
-var advMu sync.Mutex
+var advRngPool = &sync.Pool{
+	New: func() interface{} {
+		return mrand.New(mrand.NewSource(time.Now().UnixNano()))
+	},
+}
 
 func intn(max int) int {
-	advMu.Lock()
-	defer advMu.Unlock()
-	return advRng.Intn(max)
+	rng := advRngPool.Get().(*mrand.Rand)
+	defer advRngPool.Put(rng)
+	return rng.Intn(max)
 }
 
 func generateHex(n int) string {

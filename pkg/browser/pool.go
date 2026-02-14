@@ -276,6 +276,14 @@ func (p *BrowserPool) Release(instance *BrowserInstance) {
 	atomic.AddInt32(&p.metrics.CurrentActive, -1)
 	atomic.StoreInt32(&instance.inUse, 0)
 
+	// BUG FIX #4: Pool kapalıysa instance'ı destroy et (panic önleme)
+	select {
+	case <-p.ctx.Done():
+		p.destroyInstance(instance)
+		return
+	default:
+	}
+
 	// Reset instance (clear cookies, cache, etc.)
 	if err := p.Reset(instance); err != nil {
 		// Reset failed, destroy instance instead of returning to pool
@@ -305,16 +313,18 @@ func (p *BrowserPool) Reset(instance *BrowserInstance) error {
 	ctx, cancel := context.WithTimeout(instance.allocCtx, 10*time.Second)
 	defer cancel()
 
-	// Clear browser cookies
-	if err := network.ClearBrowserCookies().Do(ctx); err != nil {
-		// Continue even if cookie clearing fails
-		_ = err
-	}
-
-	// Clear browser cache
-	if err := network.ClearBrowserCache().Do(ctx); err != nil {
-		_ = err
-	}
+	// Clear cookies and cache in parallel
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		_ = network.ClearBrowserCookies().Do(ctx)
+	}()
+	go func() {
+		defer wg.Done()
+		_ = network.ClearBrowserCache().Do(ctx)
+	}()
+	wg.Wait()
 
 	// Cancel old tab context and create new one for next use
 	if instance.tabCancel != nil {
@@ -366,24 +376,33 @@ func (p *BrowserPool) ForceReset(instance *BrowserInstance) error {
 }
 
 // Close shuts down the browser pool and destroys all instances
+// BUG FIX #4: close(channel) kaldırıldı - send on closed channel panic'i önlenir
 func (p *BrowserPool) Close() error {
 	p.cancel()
 	p.wg.Wait()
 
-	// Close available channel
-	close(p.available)
-
-	// Drain and destroy all instances from available channel
-	for instance := range p.available {
-		p.destroyInstance(instance)
+	// Drain available instances without closing channel
+	for {
+		select {
+		case instance := <-p.available:
+			p.destroyInstance(instance)
+		default:
+			goto drained
+		}
 	}
+drained:
 
 	// Destroy any remaining tracked instances
 	p.mu.Lock()
-	for _, instance := range p.instances {
-		if !instance.IsInUse() {
-			p.destroyInstance(instance)
+	for id, instance := range p.instances {
+		if instance.tabCancel != nil {
+			instance.tabCancel()
 		}
+		if instance.allocCancel != nil {
+			instance.allocCancel()
+		}
+		delete(p.instances, id)
+		atomic.AddInt64(&p.metrics.TotalDestroyed, 1)
 	}
 	p.mu.Unlock()
 
@@ -515,39 +534,51 @@ func (p *BrowserPool) maintenanceLoop() {
 }
 
 // performMaintenance cleans up old instances and ensures minimum pool size
+// BUG FIX #5: Lock serbest bırakılarak deadlock önlenir
 func (p *BrowserPool) performMaintenance() {
+	// Phase 1: Lock altında recycle edilecekleri bul ve destroy et
 	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	// Find instances that need recycling
-	var toRecycle []string
+	var toRecycle []*BrowserInstance
 	for id, instance := range p.instances {
 		if !instance.IsInUse() && instance.NeedsRecycle(p.config.InstanceMaxAge, p.config.InstanceMaxSessions) {
-			toRecycle = append(toRecycle, id)
+			toRecycle = append(toRecycle, instance)
+			delete(p.instances, id)
 		}
 	}
 
 	// Calculate how many we can remove while keeping minimum
 	currentCount := len(p.instances)
-	maxRemove := currentCount - p.config.MinInstances
+	maxRemove := currentCount + len(toRecycle) - p.config.MinInstances
 	if maxRemove < 0 {
 		maxRemove = 0
 	}
 	if len(toRecycle) > maxRemove {
+		// Fazla silinenleri geri ekle
+		for i := maxRemove; i < len(toRecycle); i++ {
+			p.instances[toRecycle[i].id] = toRecycle[i]
+		}
 		toRecycle = toRecycle[:maxRemove]
 	}
 
-	// Remove from tracking (they'll be cleaned up when released)
-	for _, id := range toRecycle {
-		delete(p.instances, id)
+	needed := p.config.MinInstances - len(p.instances)
+	if needed < 0 {
+		needed = 0
+	}
+	p.mu.Unlock() // BUG FIX #5: Lock serbest bırak - createInstance kendi lock'unu alacak
+
+	// Phase 2: Lock dışında destroy
+	for _, instance := range toRecycle {
+		if instance.tabCancel != nil {
+			instance.tabCancel()
+		}
+		if instance.allocCancel != nil {
+			instance.allocCancel()
+		}
+		atomic.AddInt64(&p.metrics.TotalDestroyed, 1)
 	}
 
-	// Ensure minimum instances if pool is low
-	idleCount := len(p.available)
-	needed := p.config.MinInstances - (currentCount - len(toRecycle))
-	
-	// Create new instances up to minimum
-	for i := 0; i < needed && idleCount < p.config.MinInstances; i++ {
+	// Phase 3: Lock dışında yeni instance oluştur
+	for i := 0; i < needed; i++ {
 		instance, err := p.createInstance()
 		if err != nil {
 			continue
@@ -555,7 +586,6 @@ func (p *BrowserPool) performMaintenance() {
 		select {
 		case p.available <- instance:
 			atomic.AddInt32(&p.metrics.CurrentIdle, 1)
-			idleCount++
 		default:
 			p.destroyInstance(instance)
 		}

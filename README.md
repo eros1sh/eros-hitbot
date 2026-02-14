@@ -1,8 +1,8 @@
 # Eros Hit Bot
 
-[![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](https://golang.org)
+[![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](https://golang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.4.0-red)](https://github.com/eros1sh/eros-hitbot/releases)
+[![Version](https://img.shields.io/badge/version-2.5.0-red)](https://github.com/eros1sh/eros-hitbot/releases)
 [![Dashboard](https://img.shields.io/badge/Dashboard-Live-brightgreen)](http://localhost:8754)
 [![Prometheus](https://img.shields.io/badge/Metrics-Prometheus-orange)](https://prometheus.io)
 
@@ -25,7 +25,7 @@
 ## Table of Contents
 
 - [Overview](#overview)
-- [What's New in v2.4.0](#-whats-new-in-v240)
+- [What's New in v2.5.0](#-whats-new-in-v250)
 - [Features](#features)
 - [Architecture](#architecture)
 - [Installation](#installation)
@@ -53,43 +53,52 @@ Eros Hit Bot is an open-source **parasitic SEO** tool that generates simulated o
 
 ---
 
-## 🚀 What's New in v2.4.0
+## 🚀 What's New in v2.5.0
 
-### ✨ New Features
+### 🐛 Critical Bug Fixes & Stability Overhaul
 
-- **Real-time Dashboard & Metrics** - Prometheus-compatible metrics with live WebSocket streaming
-- **Advanced Session Management** - Cookie/LocalStorage/IndexedDB persistence with returning visitor simulation
-- **Smart Proxy Rotation** - 7 selection strategies (weighted, fastest, success-rate, geo-based)
-- **Behavioral Fingerprint Randomization** - Unique visitor profiles for realistic behavior
-- **Structured Logging (Zap)** - High-performance JSON logging with rotation
-- **Distributed Mode (Master-Worker)** - Scale across multiple machines
-- **Configuration Hot-Reload** - Auto-reload config without restart
-- **HTTP/3 QUIC Support** - Next-generation protocol for faster connections with 0-RTT support
-- **Advanced Connection Pooling** - Keep-alive optimization with connection reuse and HTTP/2 support
-- **TCP Fast Open** - Reduce TCP handshake latency (Linux-only optimization)
-- **CPU Affinity** - Pin threads to specific CPU cores for better cache utilization
-- **NUMA Awareness** - NUMA-aware memory management for high-end servers
-- **VM Fingerprint Spoofing** - Hide VirtualBox, VMware, Hyper-V traces and spoof hardware IDs
+This release addresses **21 bugs** across the entire codebase — including critical concurrency issues, resource leaks, and a completely non-functional optimized simulator. The engine is now significantly more stable, accurate, and production-ready.
 
-### 🔧 Improvements
+#### Critical Fixes
+- **Optimized Simulator fully implemented** — `visitWithPooledBrowser` was a no-op stub (100ms sleep). Now performs complete browser visits with stealth injection, fingerprint randomization, GA4 event firing, referrer chain, scroll/behavior simulation, and real HTTP status code capture
+- **Event loop double-slot consumption fixed** — Workers consumed 2 concurrency tokens per visit instead of 1, halving effective throughput and causing permanent token leaks over time. Visits are now inlined directly in the event loop
+- **Config save race condition fixed** — Concurrent config saves could corrupt data. Config is now copied under mutex before writing to disk
 
-- **Browser Pool Pattern** - ~30x faster visit initiation through pre-allocated Chrome instances
-- **Memory Optimization** - sync.Pool usage for reduced GC pressure
-- **Adaptive Rate Limiting** - Token bucket algorithm with dynamic adjustment
-- **Circuit Breaker Pattern** - Automatic failure detection and recovery
+#### High-Priority Fixes
+- **Browser pool `Close()` panic fixed** — Sending to a closed channel caused panics during shutdown. Pool now drains without closing the channel, and `Release()` checks context before returning instances
+- **Browser pool `performMaintenance()` deadlock fixed** — Lock was held while calling `createInstance()` which also required the lock. Lock is now released before instance creation
+- **Server goroutine leaks fixed** — `broadcastStatusLoop` and `metricsUpdateLoop` ran forever with no shutdown signal. Added `done` channel and `Shutdown()` method for clean termination
+- **Hardcoded Turkish language removed** — Device fingerprints always used `"tr-TR"`, making all traffic appear Turkish. Now randomly selects from 10 languages (en-US, en-GB, de-DE, fr-FR, es-ES, pt-BR, ja-JP, ko-KR, zh-CN, tr-TR)
+- **Real HTTP status codes captured** — Status code was always reported as 200 regardless of actual response. Now listens to `network.EventResponseReceived` for the real status
+- **Session metrics race condition fixed** — Read-modify-write on active session counter was not atomic. Now wrapped in mutex
 
-### 🛡️ Enhanced Startup Flow
+#### Medium-Priority Fixes
+- **CORS empty origin header fixed** — Empty `Access-Control-Allow-Origin` header was sent when no `Origin` was present, causing browser issues
+- **UTF-8 safe string padding** — `padRight` used byte-based slicing, corrupting multi-byte characters. Now uses `[]rune`
+- **Fingerprint language pool expanded** — Language pool had only 1 entry (`tr-TR`). Expanded to 10 diverse languages for realistic traffic distribution
+- **Domain configuration parsing improved** — Handles `//` prefix and strips path components for cleaner domain extraction
+- **SSRF prevention on proxy test** — Added internal IP/hostname blocklist to prevent Server-Side Request Forgery attacks via the proxy test endpoint
+- **Crawler query string cleanup** — Discovered URLs now have query strings stripped to avoid duplicate page entries
+- **Reporter average precision fixed** — Floating-point running average drifted over time. Now uses `int64` sum for exact calculation
 
-- **Automatic System Detection** — On startup, the application detects your system specifications (CPU, RAM, disk, GPU) using neofetch-style display
-- **Smart Optimization Profiles** — Based on detected hardware, the system generates optimized settings profiles (Low, Medium, High, Ultra)
-- **User Choice** — After language selection and system detection, users can choose between:
-  - **Recommended Settings** — Apply auto-optimized settings based on system capabilities
-  - **Manual Configuration** — Open web interface with default settings for manual configuration
+#### Low-Priority Fixes
+- **Optimized simulator `finish()` ordering fixed** — `Close()` was called before logging and export completed, potentially losing final metrics
+- **Mobile device behavior simulation** — `isMobile` flag was detected but unused. Mobile devices now correctly skip mouse movement simulation
+- **CLI browser open error handling** — `exec.Command().Start()` errors are now caught and reported instead of silently failing
 
-### 🌐 Complete i18n Support
+### 🔧 Previous v2.4.0 Features (Included)
 
-- **Full Localization** — All text moved to the i18n system with complete multi-language translations (Turkish and English supported)
-- **Consistent Language Experience** — Selected language is applied throughout the entire application lifecycle
+- Real-time Dashboard & Metrics with Prometheus + WebSocket streaming
+- Advanced Session Management with Cookie/LocalStorage/IndexedDB persistence
+- Smart Proxy Rotation with 7 selection strategies
+- Behavioral Fingerprint Randomization
+- Structured Logging (Zap) with rotation
+- Distributed Mode (Master-Worker)
+- Configuration Hot-Reload
+- HTTP/3 QUIC Support, Connection Pooling, TCP Fast Open
+- CPU Affinity, NUMA Awareness, VM Fingerprint Spoofing
+- Browser Pool Pattern (~30x faster visits)
+- Complete i18n Support (Turkish/English)
 
 ---
 
@@ -97,7 +106,7 @@ Eros Hit Bot is an open-source **parasitic SEO** tool that generates simulated o
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              ErosHit v2.4.0                                  │
+│                              ErosHit v2.5.0                                  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
@@ -242,7 +251,7 @@ chmod +x eros-hitbot-*
 
 ### Option 2: Build from Source
 
-**Requirements:** Go 1.21+, Chrome/Chromium (for headless mode)
+**Requirements:** Go 1.22+, Chrome/Chromium (for headless mode)
 
 ```bash
 git clone https://github.com/eros1sh/eros-hitbot.git
@@ -811,7 +820,36 @@ randomize_vm_params: true
 
 ## Changelog
 
-### v2.4.0 (Latest)
+### v2.5.0 (Latest)
+
+#### Critical Bug Fixes
+- **Optimized Simulator implemented** — `visitWithPooledBrowser` was a non-functional stub; now performs full browser visits with stealth, fingerprinting, GA4, referrer, and behavior simulation
+- **Event loop double-slot consumption** — Workers consumed 2 concurrency tokens per visit, halving throughput and leaking tokens permanently
+- **Config save race condition** — Concurrent saves could corrupt configuration data
+
+#### High-Priority Bug Fixes
+- **Browser pool Close() panic** — Sending to closed channel during shutdown caused crashes
+- **Browser pool maintenance deadlock** — Mutex held during instance creation caused deadlock
+- **Server goroutine leaks** — Background loops had no shutdown signal; added `done` channel + `Shutdown()` method
+- **Hardcoded Turkish fingerprint** — All traffic appeared Turkish (`tr-TR`); now randomized across 10 languages
+- **HTTP status always 200** — Real status codes now captured via `network.EventResponseReceived`
+- **Session metrics race condition** — Non-atomic read-modify-write on session counter
+
+#### Medium-Priority Bug Fixes
+- **CORS empty origin** — Empty `Access-Control-Allow-Origin` header when no Origin present
+- **UTF-8 string padding** — Byte-based slicing corrupted multi-byte characters
+- **Single-language fingerprint pool** — Expanded from 1 to 10 languages
+- **Domain parsing** — Handles `//` prefix and strips path components
+- **SSRF prevention** — Internal IP blocklist on proxy test endpoint
+- **Crawler URL deduplication** — Query strings stripped from discovered URLs
+- **Reporter precision drift** — Integer-based sum replaces floating-point running average
+
+#### Low-Priority Bug Fixes
+- **Simulator finish() ordering** — `Close()` now called after logging and export
+- **Mobile behavior simulation** — Mobile devices skip mouse movement
+- **CLI error handling** — Browser open command errors now reported
+
+### v2.4.0
 
 #### New Features
 - **Real-time Dashboard & Metrics** — Prometheus-compatible metrics with WebSocket streaming

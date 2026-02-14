@@ -215,12 +215,13 @@ func printBanner(url, lang string) {
 	fmt.Println()
 }
 
-// padRight pads a string to the right with spaces
+// padRight pads a string to the right with spaces (rune-safe for UTF-8)
 func padRight(s string, length int) string {
-	if len(s) >= length {
-		return s[:length]
+	runes := []rune(s)
+	if len(runes) >= length {
+		return string(runes[:length])
 	}
-	return s + strings.Repeat(" ", length-len(s))
+	return s + strings.Repeat(" ", length-len(runes))
 }
 
 // SECURITY FIX: URL validation to prevent command injection
@@ -245,14 +246,17 @@ func openBrowser(rawURL string, lang string) {
 		return
 	}
 	
+	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "windows":
-		// Use rundll32 instead of cmd /c start for safer execution
-		exec.Command("rundll32", "url.dll,FileProtocolHandler", rawURL).Start()
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", rawURL)
 	case "darwin":
-		exec.Command("open", rawURL).Start()
+		cmd = exec.Command("open", rawURL)
 	default:
-		exec.Command("xdg-open", rawURL).Start()
+		cmd = exec.Command("xdg-open", rawURL)
+	}
+	if err := cmd.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "  "+i18n.T(lang, i18n.MsgError, err)+"\n")
 	}
 }
 

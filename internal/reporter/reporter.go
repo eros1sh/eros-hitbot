@@ -43,17 +43,18 @@ type Metrics struct {
 type HitCallback func(url string, duration time.Duration, success bool, proxy string)
 
 type Reporter struct {
-	mu            sync.RWMutex
-	records       []HitRecord
-	metrics       Metrics
-	outputDir     string
-	format        string
-	logChan       chan string
-	domain        string
-	locale        string // "tr" veya "en"
-	closed        bool   // kanal kapatıldı mı
-	recordsFlushed int   // PERFORMANCE: Track flushed records count
-	hitCallback   HitCallback // SECURITY FIX: Anlık hit bildirimi için callback
+	mu               sync.RWMutex
+	records          []HitRecord
+	metrics          Metrics
+	totalResponseTime int64 // BUG FIX #19: Kesin ortalama için toplam response time (ms)
+	outputDir        string
+	format           string
+	logChan          chan string
+	domain           string
+	locale           string // "tr" veya "en"
+	closed           bool   // kanal kapatıldı mı
+	recordsFlushed   int    // PERFORMANCE: Track flushed records count
+	hitCallback      HitCallback // SECURITY FIX: Anlık hit bildirimi için callback
 }
 
 func New(outputDir, format string, domain string) *Reporter {
@@ -112,8 +113,9 @@ func (r *Reporter) Record(h HitRecord) {
 			r.metrics.MaxResponseTime = h.ResponseTime
 		}
 
-		total := float64(r.metrics.SuccessHits-1)*r.metrics.AvgResponseTime + float64(h.ResponseTime)
-		r.metrics.AvgResponseTime = total / float64(r.metrics.SuccessHits)
+		// BUG FIX #19: Kesin ortalama - float drift önleme
+		r.totalResponseTime += h.ResponseTime
+		r.metrics.AvgResponseTime = float64(r.totalResponseTime) / float64(r.metrics.SuccessHits)
 	} else {
 		r.metrics.FailedHits++
 	}

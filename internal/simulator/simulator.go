@@ -246,49 +246,17 @@ func (s *Simulator) Run(ctx context.Context) error {
 	if s.livePool == nil {
 		// PERFORMANCE: Kanal bazlı semaphore (daha az memory)
 		slotFreed := make(chan struct{}, workers)
-		
+
 		// PERFORMANCE: Pre-allocate slotFreed buffer'ı
 		for i := 0; i < workers; i++ {
 			slotFreed <- struct{}{}
 		}
-		// PERFORMANCE: Ziyaret fonksiyonu - goroutine reuse ile
-		startVisit := func() {
-			if err := tb.Take(ctx); err != nil {
-				return
-			}
-			if time.Now().After(deadline) {
-				return
-			}
-			select {
-			case <-slotFreed:
-				wg.Add(1)
-				page := s.pickPage()
-				go func(url string) {
-					defer wg.Done()
-					defer func() { slotFreed <- struct{}{} }()
-					
-					// PERFORMANCE: Visit timeout ile sınırla
-					visitCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
-					defer cancel()
-					
-					if err := s.hitVisitor.VisitURL(visitCtx, url); err != nil {
-						s.visitErrAgg.add(s.reporter, url, err)
-					} else {
-						n := atomic.AddInt64(&hitCount, 1)
-						if n%10 == 0 {
-							m := s.reporter.GetMetrics()
-							s.reporter.LogT(i18n.MsgProgress,
-								n, m.TotalHits, m.SuccessHits, m.FailedHits, m.AvgResponseTime)
-						}
-					}
-				}(page)
-			default:
-			}
-		}
-		// PERFORMANCE: Daha verimli event loop
-		ticker := time.NewTicker(100 * time.Millisecond)
+
+		// BUG FIX #2: Event loop tek slot tüketimi - startVisit kaldırıldı
+		// Event loop slot tüketir, goroutine bitince geri verir
+		ticker := time.NewTicker(20 * time.Millisecond)
 		defer ticker.Stop()
-		
+
 		for {
 			select {
 			case <-ctx.Done():
@@ -305,10 +273,37 @@ func (s *Simulator) Run(ctx context.Context) error {
 					s.finish()
 					return nil
 				}
-				// PERFORMANCE: Boşta slot varsa yeni ziyaret başlat
+				// Boşta slot varsa yeni ziyaret başlat
 				select {
 				case <-slotFreed:
-					go startVisit()
+					wg.Add(1)
+					page := s.pickPage()
+					go func(url string) {
+						defer wg.Done()
+						defer func() { slotFreed <- struct{}{} }()
+
+						// Rate limiting - token bucket'tan token al
+						if err := tb.Take(ctx); err != nil {
+							return
+						}
+						if time.Now().After(deadline) {
+							return
+						}
+
+						visitCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+						defer cancel()
+
+						if err := s.hitVisitor.VisitURL(visitCtx, url); err != nil {
+							s.visitErrAgg.add(s.reporter, url, err)
+						} else {
+							n := atomic.AddInt64(&hitCount, 1)
+							if n%10 == 0 {
+								m := s.reporter.GetMetrics()
+								s.reporter.LogT(i18n.MsgProgress,
+									n, m.TotalHits, m.SuccessHits, m.FailedHits, m.AvgResponseTime)
+							}
+						}
+					}(page)
 				default:
 				}
 			}

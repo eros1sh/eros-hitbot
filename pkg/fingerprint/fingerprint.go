@@ -9,7 +9,7 @@ import (
 )
 
 var platforms = []string{"Win32", "MacIntel", "Linux x86_64"}
-var langs = []string{"tr-TR"}
+var langs = []string{"tr-TR", "en-US", "en-GB", "de-DE", "fr-FR", "es-ES", "pt-BR", "ja-JP", "ko-KR", "zh-CN"}
 var timezones = []string{"Europe/Istanbul", "Europe/London", "America/New_York", "Europe/Paris"}
 var vendors = []string{"Google Inc.", "Apple Computer, Inc."}
 var renderers = []string{
@@ -40,12 +40,15 @@ type FP struct {
 	Renderer     string
 }
 
-var rng = rand.New(rand.NewSource(time.Now().UnixNano()))
-var mu sync.Mutex
+var rngPool = &sync.Pool{
+	New: func() interface{} {
+		return rand.New(rand.NewSource(time.Now().UnixNano()))
+	},
+}
 
 func Random() FP {
-	mu.Lock()
-	defer mu.Unlock()
+	rng := rngPool.Get().(*rand.Rand)
+	defer rngPool.Put(rng)
 
 	sw := 1366 + rng.Intn(600)
 	sh := 768 + rng.Intn(400)

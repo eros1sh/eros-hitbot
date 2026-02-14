@@ -179,6 +179,7 @@ func (cr *Crawler) maybeVisit(rawURL string) {
 	}
 	// Fragment ve query temizle (aynı sayfa tekrarı önle)
 	u.Fragment = ""
+	u.RawQuery = ""
 	normalized := u.String()
 
 	cr.mu.Lock()
