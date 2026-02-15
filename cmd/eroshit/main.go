@@ -25,6 +25,7 @@ import (
 	"eroshit/pkg/configfiles"
 	"eroshit/pkg/i18n"
 	"eroshit/pkg/sysinfo"
+	"eroshit/pkg/updater"
 	"eroshit/pkg/useragent"
 )
 
@@ -41,18 +42,34 @@ func main() {
 	// Dil seçimi - her modda ilk adım
 	currentLang = promptLang()
 
+	// Güncelleme kontrolünü arka planda başlat
+	updateCh := updater.CheckForUpdateAsync()
+
 	// Sistem bilgisi modu
 	if *showSysInfo {
 		showSystemInfo(currentLang)
+		showUpdateIfAvailable(updateCh, currentLang)
 		return
 	}
 
 	if *cliMode {
+		showUpdateIfAvailable(updateCh, currentLang)
 		runCLI(*autoOptimize, currentLang)
 		return
 	}
 
+	showUpdateIfAvailable(updateCh, currentLang)
 	runGUI(*port, currentLang)
+}
+
+// showUpdateIfAvailable güncelleme kontrolü sonucunu bekler ve bildirim gösterir
+func showUpdateIfAvailable(ch <-chan *updater.UpdateResult, lang string) {
+	select {
+	case result := <-ch:
+		updater.PrintUpdateNotice(result, lang)
+	case <-time.After(6 * time.Second):
+		// Timeout — sessizce devam et
+	}
 }
 
 // showSystemInfo displays neofetch-style system information

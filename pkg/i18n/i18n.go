@@ -142,7 +142,7 @@ const (
 )
 
 var tr = map[string]string{
-	MsgStarting:        "Eros - Hit Botu v2.4.0 başlatılıyor...",
+	MsgStarting:        "Eros - Hit Botu v2.5.0 başlatılıyor...",
 	MsgTarget:          "Hedef: %s | Max sayfa: %d | Süre: %d dk | HPM: %d | Paralel: %d",
 	MsgDiscovery:       "Sayfa keşfi başlıyor...",
 	MsgDiscoveryErr:    "Keşif hatası: %s",
@@ -280,7 +280,7 @@ var tr = map[string]string{
 }
 
 var en = map[string]string{
-	MsgStarting:        "Eros - Hit Bot v2.4.0 starting...",
+	MsgStarting:        "Eros - Hit Bot v2.5.0 starting...",
 	MsgTarget:          "Target: %s | Max pages: %d | Duration: %d min | HPM: %d | Parallel: %d",
 	MsgDiscovery:       "Page discovery starting...",
 	MsgDiscoveryErr:    "Discovery error: %s",
