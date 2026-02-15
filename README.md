@@ -9,9 +9,6 @@
 > **💼 Premium Version & Rental Services Available**  
 > **🇹🇷 Ücretli Sürüm ve Kiralama Hizmetleri Mevcut**
 > 
-> **English:** For premium version, rental services, or specialized solutions (including betting sites), please contact me via Telegram.  
-> **Türkçe:** Ücretli sürüm, kiralama hizmetleri veya özel çözümler (bahis siteleri dahil) için lütfen Telegram üzerinden benimle iletişime geçin.
-> 
 > **📱 Telegram:** Contact me via Telegram for inquiries
 
 **Parasitic SEO traffic simulation tool** — Simulate organic search traffic, boost search engine rankings, and verify analytics (GA4/GTM) through realistic, keyword-driven web visits.
