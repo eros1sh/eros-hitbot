@@ -11,7 +11,7 @@ import (
 
 const (
 	// CurrentVersion uygulamanın mevcut sürümü
-	CurrentVersion = "2.5.0"
+	CurrentVersion = "2.5.2"
 
 	// gitHubReleaseURL GitHub releases API endpoint
 	gitHubReleaseURL = "https://api.github.com/repos/eros1sh/eros-hitbot/releases/latest"
