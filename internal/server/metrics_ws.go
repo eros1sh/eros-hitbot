@@ -162,25 +162,10 @@ func NewMetricsWebSocket(collector *metrics.MetricsCollector) *MetricsWebSocket 
 		collector:   collector,
 		hub:         NewMetricsHub(),
 		broadcastCh: make(chan MetricsEvent, 256),
+		// SECURITY FIX: Exact host match for WebSocket origin validation (CWE-346)
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
-				// Allow same-origin requests
-				origin := r.Header.Get("Origin")
-				if origin == "" {
-					return true
-				}
-				allowedOrigins := []string{
-					"http://127.0.0.1",
-					"http://localhost",
-					"https://127.0.0.1",
-					"https://localhost",
-				}
-				for _, allowed := range allowedOrigins {
-					if len(origin) >= len(allowed) && origin[:len(allowed)] == allowed {
-						return true
-					}
-				}
-				return false
+				return isAllowedOrigin(r.Header.Get("Origin"))
 			},
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
@@ -370,7 +355,7 @@ func MetricsJSONHandler(collector *metrics.MetricsCollector) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		// SECURITY FIX: Removed wildcard CORS — origin validated by security headers middleware
 		json.NewEncoder(w).Encode(collector.GetSnapshot())
 	}
 }

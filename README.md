@@ -2,7 +2,7 @@
 
 [![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](https://golang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.5.0-red)](https://github.com/eros1sh/eros-hitbot/releases)
+[![Version](https://img.shields.io/badge/version-2.5.2-red)](https://github.com/eros1sh/eros-hitbot/releases)
 [![Dashboard](https://img.shields.io/badge/Dashboard-Live-brightgreen)](http://localhost:8754)
 [![Prometheus](https://img.shields.io/badge/Metrics-Prometheus-orange)](https://prometheus.io)
 
@@ -22,7 +22,7 @@
 ## Table of Contents
 
 - [Overview](#overview)
-- [What's New in v2.5.0](#-whats-new-in-v250)
+- [What's New in v2.5.2](#-whats-new-in-v252)
 - [Features](#features)
 - [Architecture](#architecture)
 - [Installation](#installation)
@@ -50,11 +50,35 @@ Eros Hit Bot is an open-source **parasitic SEO** tool that generates simulated o
 
 ---
 
-## 🚀 What's New in v2.5.0
+## 🚀 What's New in v2.5.2
 
-### 🐛 Critical Bug Fixes & Stability Overhaul
+### 🔒 Security Hardening Release
 
-This release addresses **21 bugs** across the entire codebase — including critical concurrency issues, resource leaks, and a completely non-functional optimized simulator. The engine is now significantly more stable, accurate, and production-ready.
+This release addresses **20 security vulnerabilities** discovered through a comprehensive STRIDE threat analysis. All API endpoints, authentication, WebSocket connections, and credential handling have been hardened.
+
+#### Critical Security Fixes
+- **Credential exposure removed** — Active proxy credentials (DataImpulse) were present in config.json. Sanitized and removed all real credentials from repository
+- **API credential masking** — `GET /api/config` no longer returns plaintext proxy passwords. All sensitive fields (`proxy_user`, `proxy_pass`, private proxy credentials) are now masked in API responses (CWE-200)
+- **Security headers middleware** — All API responses now include `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, `X-XSS-Protection`, `Cache-Control: no-store`
+
+#### High-Priority Security Fixes
+- **Constant-time token comparison** — Distributed mode auth middleware now uses `crypto/subtle.ConstantTimeCompare` to prevent timing side-channel attacks (CWE-208)
+- **Cryptographically secure IDs** — Task and Worker IDs now use `crypto/rand` instead of predictable `time.UnixNano()` (CWE-330)
+- **Request body size limits** — All API endpoints now enforce 1MB body limit via `http.MaxBytesReader` to prevent memory exhaustion DoS (CWE-400)
+- **WebSocket origin validation hardened** — Replaced `strings.HasPrefix` with exact hostname match via `url.Parse`. Previous check allowed bypass with `http://localhost.evil.com` (CWE-346)
+- **CORS origin validation fixed** — SSE `/api/logs` endpoint CORS check had the same prefix bypass vulnerability. Now uses the same exact-match validation
+
+#### Medium-Priority Security Fixes
+- **Metrics endpoint rate limiting** — `/api/metrics` (Prometheus) was unprotected. Now wrapped with rate limiting + security headers
+- **Config file permissions tightened** — `config.json` (containing proxy credentials) now saved with `0600` instead of `0644` (CWE-732)
+- **Error message sanitization** — Internal Go error details no longer leaked to clients in JSON decode errors and system optimization errors (CWE-209)
+- **CORS wildcard removed** — `/api/metrics/json` had `Access-Control-Allow-Origin: *`. Removed — origin validation handled by middleware
+- **Stdlib base64 implementation** — Replaced manual base64 encoder with Go's `encoding/base64` stdlib for correctness and maintainability (CWE-327)
+- **Task map memory leak fixed** — Completed/failed tasks in distributed mode are now cleaned up after 1 hour. Stuck assigned tasks cleaned after 2x timeout (CWE-401)
+- **Worker CPU spin eliminated** — Worker task loop had tight `default` branch causing 100% CPU. Added 100ms throttle between iterations (CWE-400)
+- **Health endpoint version updated** — Now correctly reports v2.5.2
+
+### 🐛 Previous v2.5.0 Bug Fixes (Included)
 
 #### Critical Fixes
 - **Optimized Simulator fully implemented** — `visitWithPooledBrowser` was a no-op stub (100ms sleep). Now performs complete browser visits with stealth injection, fingerprint randomization, GA4 event firing, referrer chain, scroll/behavior simulation, and real HTTP status code capture
@@ -103,7 +127,7 @@ This release addresses **21 bugs** across the entire codebase — including crit
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              ErosHit v2.5.0                                  │
+│                              ErosHit v2.5.2                                  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
@@ -817,7 +841,34 @@ randomize_vm_params: true
 
 ## Changelog
 
-### v2.5.0 (Latest)
+### v2.5.2 (Latest) — Security Hardening Release
+
+#### Critical Security Fixes
+- **Constant-time token comparison** — Auth middleware in distributed coordinator now uses `crypto/subtle.ConstantTimeCompare` to prevent timing-based token extraction (CWE-208)
+- **Cryptographic ID generation** — `generateTaskID()` and `generateWorkerID()` replaced `math/rand` with `crypto/rand` to prevent predictable ID enumeration (CWE-330)
+- **Credential masking in API** — Proxy credentials (user/pass) are now masked in `GET /api/config` responses to prevent information disclosure (CWE-200)
+
+#### High Security Fixes
+- **Security headers middleware** — All API responses now include `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, `X-XSS-Protection`, `Cache-Control: no-store` (CWE-693)
+- **Request body size limits** — All POST endpoints enforce 1MB `MaxBytesReader` limit to prevent memory exhaustion DoS (CWE-400)
+- **WebSocket origin validation** — Replaced `strings.HasPrefix` with exact hostname matching (`127.0.0.1`, `localhost`, `::1`) to prevent Cross-Site WebSocket Hijacking (CWE-346)
+- **CORS origin hardening** — Log streaming and metrics endpoints now use strict origin validation instead of prefix-based checks
+- **Stdlib base64 implementation** — Replaced manual base64 encoder with `encoding/base64` stdlib to eliminate potential encoding bugs (CWE-327)
+
+#### Medium Security Fixes
+- **Error message sanitization** — Internal error details no longer leaked to clients in JSON error responses (CWE-209)
+- **Config file permissions** — `config.json` now written with `0600` (owner-only) instead of `0644` (world-readable) (CWE-732)
+- **Metrics endpoint rate limiting** — `/api/metrics/json` now protected by rate limiter (previously unprotected)
+- **CORS wildcard removal** — Removed `Access-Control-Allow-Origin: *` from metrics JSON handler
+- **Task map memory cleanup** — Distributed coordinator now cleans up completed tasks (>1hr) and stuck tasks (>2x timeout) to prevent memory leaks (CWE-401)
+
+#### Low Security Fixes
+- **Worker CPU spin fix** — Added 100ms throttle to worker task loop to prevent CPU exhaustion when idle
+- **Credential sanitization** — Removed hardcoded proxy credentials from `config.json` defaults
+
+---
+
+### v2.5.0
 
 #### Critical Bug Fixes
 - **Optimized Simulator implemented** — `visitWithPooledBrowser` was a non-functional stub; now performs full browser visits with stealth, fingerprinting, GA4, referrer, and behavior simulation

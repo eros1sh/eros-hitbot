@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"embed"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
@@ -38,6 +39,27 @@ var serverStartTime = time.Now()
 
 // SECURITY: Rate limiter - 100 requests per second with burst of 200
 var apiLimiter = rate.NewLimiter(rate.Limit(100), 200)
+
+// SECURITY FIX: Allowed localhost origins for origin validation
+var allowedLocalOrigins = []string{
+	"http://127.0.0.1",
+	"http://localhost",
+	"https://127.0.0.1",
+	"https://localhost",
+}
+
+// SECURITY FIX: isAllowedOrigin validates origin with exact host match (not prefix)
+func isAllowedOrigin(origin string) bool {
+	if origin == "" {
+		return true
+	}
+	parsed, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	host := parsed.Hostname()
+	return host == "127.0.0.1" || host == "localhost" || host == "::1"
+}
 
 //go:embed static/*
 var staticFS embed.FS
@@ -423,7 +445,8 @@ func saveConfigToFile(cfg *config.Config) {
 			continue
 		}
 		
-		if err := os.WriteFile(p, data, 0644); err == nil {
+		// SECURITY FIX: Tighter file permissions — owner read/write only (CWE-732)
+		if err := os.WriteFile(p, data, 0600); err == nil {
 			savedPath = p
 			log.Printf("[INFO] Config kaydedildi: %s", p)
 			// Save to first successful location, but also try others for redundancy
@@ -485,45 +508,73 @@ func rateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// SECURITY FIX: Security headers middleware (CWE-693: Protection Mechanism Failure)
+func securityHeadersMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		w.Header().Set("X-XSS-Protection", "1; mode=block")
+		w.Header().Set("Cache-Control", "no-store")
+		next(w, r)
+	}
+}
+
+// SECURITY FIX: Request body size limit middleware (CWE-400: Resource Exhaustion)
+func bodyLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Body != nil {
+			r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1MB limit
+		}
+		next(w, r)
+	}
+}
+
+// wrapAPI combines all security middlewares: rate limit + security headers + body limit
+func wrapAPI(next http.HandlerFunc) http.HandlerFunc {
+	return securityHeadersMiddleware(rateLimitMiddleware(bodyLimitMiddleware(next)))
+}
+
 func (s *Server) Routes() http.Handler {
 	mux := http.NewServeMux()
 
 	sub, _ := fs.Sub(staticFS, "static")
 	mux.Handle("/", http.FileServer(http.FS(sub)))
 
-	// SECURITY: Health endpoint for monitoring
-	mux.HandleFunc("/health", s.handleHealth)
-	
-	// API endpoints with rate limiting
-	mux.HandleFunc("/api/config", rateLimitMiddleware(s.handleConfig))
-	mux.HandleFunc("/api/start", rateLimitMiddleware(s.handleStart))
-	mux.HandleFunc("/api/stop", rateLimitMiddleware(s.handleStop))
-	mux.HandleFunc("/api/status", rateLimitMiddleware(s.handleStatus))
-	mux.HandleFunc("/api/logs", rateLimitMiddleware(s.handleLogs))
-	mux.HandleFunc("/api/ws", s.handleWebSocket) // WebSocket has its own handling
-	mux.HandleFunc("/api/proxy/fetch", rateLimitMiddleware(s.handleProxyFetch))
-	mux.HandleFunc("/api/proxy/status", rateLimitMiddleware(s.handleProxyStatus))
-	mux.HandleFunc("/api/proxy/live", rateLimitMiddleware(s.handleProxyLive))
-	mux.HandleFunc("/api/proxy/export", rateLimitMiddleware(s.handleProxyExport))
-	mux.HandleFunc("/api/proxy/test", rateLimitMiddleware(s.handleProxyTest))
-	mux.HandleFunc("/api/gsc/queries", rateLimitMiddleware(s.handleGSCQueries))
+	// SECURITY: Health endpoint for monitoring (no auth needed)
+	mux.HandleFunc("/health", securityHeadersMiddleware(s.handleHealth))
 
-	// Metrics endpoints
-	mux.HandleFunc("/api/metrics", MetricsHandler(s.metrics))               // Prometheus format
-	mux.HandleFunc("/api/metrics/json", rateLimitMiddleware(MetricsJSONHandler(s.metrics))) // JSON format
-	mux.HandleFunc("/api/metrics/stream", s.metricsWS.HandleWebSocket)      // Real-time WebSocket stream
-	mux.HandleFunc("/api/metrics/dashboard", rateLimitMiddleware(DashboardHandler()))       // Grafana dashboard JSON
-	
+	// SECURITY FIX: All API endpoints with combined security middleware (rate limit + headers + body limit)
+	mux.HandleFunc("/api/config", wrapAPI(s.handleConfig))
+	mux.HandleFunc("/api/start", wrapAPI(s.handleStart))
+	mux.HandleFunc("/api/stop", wrapAPI(s.handleStop))
+	mux.HandleFunc("/api/status", wrapAPI(s.handleStatus))
+	mux.HandleFunc("/api/logs", wrapAPI(s.handleLogs))
+	mux.HandleFunc("/api/ws", s.handleWebSocket) // WebSocket has its own handling
+	mux.HandleFunc("/api/proxy/fetch", wrapAPI(s.handleProxyFetch))
+	mux.HandleFunc("/api/proxy/status", wrapAPI(s.handleProxyStatus))
+	mux.HandleFunc("/api/proxy/live", wrapAPI(s.handleProxyLive))
+	mux.HandleFunc("/api/proxy/export", wrapAPI(s.handleProxyExport))
+	mux.HandleFunc("/api/proxy/test", wrapAPI(s.handleProxyTest))
+	mux.HandleFunc("/api/gsc/queries", wrapAPI(s.handleGSCQueries))
+
+	// SECURITY FIX: Metrics endpoints now have rate limiting too
+	mux.HandleFunc("/api/metrics", wrapAPI(MetricsHandler(s.metrics)))
+	mux.HandleFunc("/api/metrics/json", wrapAPI(MetricsJSONHandler(s.metrics)))
+	mux.HandleFunc("/api/metrics/stream", s.metricsWS.HandleWebSocket)
+	mux.HandleFunc("/api/metrics/dashboard", wrapAPI(DashboardHandler()))
+
 	// System Optimization endpoints
-	mux.HandleFunc("/api/system/info", rateLimitMiddleware(s.handleSystemInfo))
-	mux.HandleFunc("/api/system/optimize", rateLimitMiddleware(s.handleSystemOptimize))
-	
+	mux.HandleFunc("/api/system/info", wrapAPI(s.handleSystemInfo))
+	mux.HandleFunc("/api/system/optimize", wrapAPI(s.handleSystemOptimize))
+
 	// Network Optimization endpoints
-	mux.HandleFunc("/api/network/config", rateLimitMiddleware(s.handleNetworkConfig))
-	
+	mux.HandleFunc("/api/network/config", wrapAPI(s.handleNetworkConfig))
+
 	// VM Spoofing endpoints
-	mux.HandleFunc("/api/vm/status", rateLimitMiddleware(s.handleVMStatus))
-	mux.HandleFunc("/api/vm/score", rateLimitMiddleware(s.handleVMScore))
+	mux.HandleFunc("/api/vm/status", wrapAPI(s.handleVMStatus))
+	mux.HandleFunc("/api/vm/score", wrapAPI(s.handleVMScore))
 
 	return mux
 }
@@ -544,7 +595,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"status":     "healthy",
 		"uptime":     time.Since(serverStartTime).String(),
 		"running":    running,
-		"version":    "1.0.0",
+		"version":    "2.5.2",
 		"timestamp":  time.Now().UTC().Format(time.RFC3339),
 	})
 }
@@ -556,14 +607,22 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		cfg := s.cfg
 		s.mu.Unlock()
 		
-		// Private proxy'leri API formatına dönüştür
+		// SECURITY FIX: Private proxy'leri API formatına dönüştür - credential maskeleme (CWE-200)
 		var privateProxiesAPI []map[string]interface{}
 		for _, pp := range cfg.PrivateProxies {
+			maskedUser := ""
+			if pp.User != "" {
+				maskedUser = pp.User[:min(3, len(pp.User))] + "***"
+			}
+			maskedPass := ""
+			if pp.Pass != "" {
+				maskedPass = "********"
+			}
 			privateProxiesAPI = append(privateProxiesAPI, map[string]interface{}{
 				"host":     pp.Host,
 				"port":     pp.Port,
-				"user":     pp.User,
-				"pass":     pp.Pass,
+				"user":     maskedUser,
+				"pass":     maskedPass,
 				"protocol": pp.Protocol,
 			})
 		}
@@ -584,8 +643,8 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 			"keywords":               cfg.Keywords,
 			"proxy_host":             cfg.ProxyHost,
 			"proxy_port":             cfg.ProxyPort,
-			"proxy_user":             cfg.ProxyUser,
-			"proxy_pass":             cfg.ProxyPass,
+			"proxy_user":             maskCredential(cfg.ProxyUser),
+			"proxy_pass":             maskCredential(cfg.ProxyPass),
 			"gtag_id":                cfg.GtagID,
 			"use_public_proxy":       cfg.UsePublicProxy,
 			"proxy_source_urls":      cfg.ProxySourceURLs,
@@ -844,7 +903,8 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			log.Printf("[ERROR] Config decode error: %v", err)
-			http.Error(w, "Invalid JSON: "+err.Error(), 400)
+			// SECURITY FIX: Don't leak internal error details to client (CWE-209)
+			http.Error(w, "Invalid JSON request body", 400)
 			return
 		}
 		s.mu.Lock()
@@ -1226,27 +1286,10 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(s.buildStatusMap())
 }
 
-// SECURITY FIX: WebSocket origin validation to prevent CSWSH attacks
+// SECURITY FIX: WebSocket origin validation — exact host match (CWE-346: Origin Validation Error)
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		origin := r.Header.Get("Origin")
-		// Allow same-origin requests (no Origin header)
-		if origin == "" {
-			return true
-		}
-		// Allow localhost origins for local development
-		allowedOrigins := []string{
-			"http://127.0.0.1",
-			"http://localhost",
-			"https://127.0.0.1",
-			"https://localhost",
-		}
-		for _, allowed := range allowedOrigins {
-			if strings.HasPrefix(origin, allowed) {
-				return true
-			}
-		}
-		return false
+		return isAllowedOrigin(r.Header.Get("Origin"))
 	},
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -1284,12 +1327,9 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
-	// BUG FIX #12: Boş origin durumunda geçersiz header gönderilmesini önle
+	// SECURITY FIX: CORS origin validation with exact host match (CWE-346)
 	origin := r.Header.Get("Origin")
-	if origin != "" && (strings.HasPrefix(origin, "http://127.0.0.1") ||
-		strings.HasPrefix(origin, "http://localhost") ||
-		strings.HasPrefix(origin, "https://127.0.0.1") ||
-		strings.HasPrefix(origin, "https://localhost")) {
+	if origin != "" && isAllowedOrigin(origin) {
 		w.Header().Set("Access-Control-Allow-Origin", origin)
 	}
 	flusher, ok := w.(http.Flusher)
@@ -1763,50 +1803,13 @@ func exchangeJWTForAccessToken(jwt string) (string, error) {
 	return tokenResponse.AccessToken, nil
 }
 
-// base64URLEncode base64 URL encoding
+// SECURITY FIX: Use stdlib encoding/base64 instead of manual implementation (CWE-327)
 func base64URLEncode(data []byte) string {
-	encoded := encodeBase64(data)
-	// URL-safe: + -> -, / -> _, padding kaldır
-	encoded = strings.ReplaceAll(encoded, "+", "-")
-	encoded = strings.ReplaceAll(encoded, "/", "_")
-	encoded = strings.TrimRight(encoded, "=")
-	return encoded
+	return base64.RawURLEncoding.EncodeToString(data)
 }
 
-// encodeBase64 standart base64 encoding
 func encodeBase64(data []byte) string {
-	const base64Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-	result := make([]byte, ((len(data)+2)/3)*4)
-	
-	for i, j := 0, 0; i < len(data); i, j = i+3, j+4 {
-		var n uint32
-		remaining := len(data) - i
-		
-		n = uint32(data[i]) << 16
-		if remaining > 1 {
-			n |= uint32(data[i+1]) << 8
-		}
-		if remaining > 2 {
-			n |= uint32(data[i+2])
-		}
-		
-		result[j] = base64Chars[(n>>18)&0x3F]
-		result[j+1] = base64Chars[(n>>12)&0x3F]
-		
-		if remaining > 1 {
-			result[j+2] = base64Chars[(n>>6)&0x3F]
-		} else {
-			result[j+2] = '='
-		}
-		
-		if remaining > 2 {
-			result[j+3] = base64Chars[n&0x3F]
-		} else {
-			result[j+3] = '='
-		}
-	}
-	
-	return string(result)
+	return base64.StdEncoding.EncodeToString(data)
 }
 
 // signRS256 RS256 imzalama
@@ -1845,9 +1848,19 @@ func signRS256(input, privateKeyPEM string) (string, error) {
 		return "", fmt.Errorf("imzalama hatası: %w", err)
 	}
 	
-	// Base64 URL encode
-	return strings.TrimRight(strings.ReplaceAll(strings.ReplaceAll(
-		encodeBase64(signature), "+", "-"), "/", "_"), "="), nil
+	// SECURITY FIX: Use stdlib base64 URL encoding
+	return base64.RawURLEncoding.EncodeToString(signature), nil
+}
+
+// SECURITY FIX: Mask sensitive credentials in API responses (CWE-200)
+func maskCredential(s string) string {
+	if s == "" {
+		return ""
+	}
+	if len(s) <= 3 {
+		return "***"
+	}
+	return s[:3] + "********"
 }
 
 func escapeSSE(s string) string {

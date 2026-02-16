@@ -84,7 +84,8 @@ func (s *Server) handleSystemOptimize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := optimizer.Optimize(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		// SECURITY FIX: Don't leak internal error details (CWE-209)
+		http.Error(w, "Optimization failed", http.StatusInternalServerError)
 		return
 	}
 

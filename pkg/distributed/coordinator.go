@@ -4,9 +4,13 @@ package distributed
 import (
 	"bytes"
 	"context"
+	cryptorand "crypto/rand"
+	"crypto/subtle"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -247,11 +251,20 @@ func (m *Master) GetHealthyWorkers() []*WorkerInfo {
 
 // HTTP Handlers
 
+// SECURITY FIX: Constant-time token comparison to prevent timing attacks (CWE-208)
 func (m *Master) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if m.config.SecretKey != "" {
 			authHeader := r.Header.Get("Authorization")
-			if authHeader != "Bearer "+m.config.SecretKey {
+			// SECURITY FIX: Parse Bearer token safely
+			const prefix = "Bearer "
+			if !strings.HasPrefix(authHeader, prefix) {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+			token := authHeader[len(prefix):]
+			// SECURITY FIX: Constant-time comparison (CWE-208: Timing Side Channel)
+			if subtle.ConstantTimeCompare([]byte(token), []byte(m.config.SecretKey)) != 1 {
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
 				return
 			}
@@ -501,6 +514,20 @@ func (m *Master) cleanupStaleWorkers() {
 			fmt.Printf("[Master] Worker marked offline: %s\n", id)
 		}
 	}
+
+	// SECURITY FIX: Cleanup completed/failed tasks older than 1 hour to prevent memory leak (CWE-401)
+	m.tasksMu.Lock()
+	for id, task := range m.tasks {
+		if task.CompletedAt != nil && now.Sub(*task.CompletedAt) > 1*time.Hour {
+			delete(m.tasks, id)
+		}
+		// Also clean up stuck assigned tasks older than 2x task timeout
+		if task.Status == TaskAssigned && task.AssignedAt != nil &&
+			now.Sub(*task.AssignedAt) > 2*m.config.TaskTimeout {
+			delete(m.tasks, id)
+		}
+	}
+	m.tasksMu.Unlock()
 }
 
 // MasterStats master istatistikleri
@@ -690,6 +717,7 @@ func (w *Worker) sendHeartbeat() {
 	defer resp.Body.Close()
 }
 
+// SECURITY FIX: Added throttle to prevent CPU spin when no tasks available (CWE-400)
 func (w *Worker) taskLoop() {
 	for {
 		select {
@@ -697,6 +725,12 @@ func (w *Worker) taskLoop() {
 			return
 		default:
 			w.requestAndProcessTask()
+			// Brief pause to prevent tight CPU spin loop when idle
+			select {
+			case <-w.ctx.Done():
+				return
+			case <-time.After(100 * time.Millisecond):
+			}
 		}
 	}
 }
@@ -824,10 +858,15 @@ type WorkerStats struct {
 
 // Helper functions
 
+// SECURITY FIX: Use crypto/rand for unpredictable IDs (CWE-330: Insufficient Randomness)
 func generateTaskID() string {
-	return fmt.Sprintf("task_%d", time.Now().UnixNano())
+	b := make([]byte, 12)
+	_, _ = cryptorand.Read(b)
+	return fmt.Sprintf("task_%s", hex.EncodeToString(b))
 }
 
 func generateWorkerID() string {
-	return fmt.Sprintf("worker_%d", time.Now().UnixNano())
+	b := make([]byte, 12)
+	_, _ = cryptorand.Read(b)
+	return fmt.Sprintf("worker_%s", hex.EncodeToString(b))
 }
