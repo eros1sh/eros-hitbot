@@ -9,7 +9,7 @@
 > **💼 Premium Version & Rental Services Available**  
 > **🇹🇷 Ücretli Sürüm ve Kiralama Hizmetleri Mevcut**
 > 
-> **📱 Telegram:** Contact me via Telegram for inquiries
+> **📱 Telegram:** Contact me via Telegram for inquiries <a href="https://t.me/eros_sh">@eros_sh</a>
 
 **Parasitic SEO traffic simulation tool** — Simulate organic search traffic, boost search engine rankings, and verify analytics (GA4/GTM) through realistic, keyword-driven web visits.
 
